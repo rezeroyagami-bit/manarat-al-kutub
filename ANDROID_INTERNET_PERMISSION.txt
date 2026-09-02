@@ -1,0 +1,2 @@
+في مشروع Flutter Android النهائي، يجب أن يحتوي android/app/src/main/AndroidManifest.xml داخل <manifest> على:
+<uses-permission android:name="android.permission.INTERNET" />
