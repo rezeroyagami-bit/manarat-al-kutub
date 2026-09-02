@@ -14,19 +14,36 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const orange = Color(0xFFF28C28);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('منارة الكتب'),
+        title: const Text(
+          'KITARA — كيتارا',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
+            tooltip: isDark ? 'الوضع النهاري' : 'الوضع الليلي',
             onPressed: onTheme,
-            icon: const Icon(Icons.dark_mode_outlined),
+            icon: Icon(
+              isDark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_outlined,
+              color: orange,
+            ),
           ),
         ],
       ),
       body: books.isEmpty
           ? const Center(
-              child: Text('لا توجد كتب حاليًا'),
+              child: Text(
+                'لا توجد كتب حاليًا',
+                style: TextStyle(fontSize: 18),
+              ),
             )
           : GridView.builder(
               padding: const EdgeInsets.all(16),
@@ -64,12 +81,12 @@ class HomeScreen extends StatelessWidget {
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
                                       const Icon(
-                                    Icons.menu_book,
+                                    Icons.menu_book_rounded,
                                     size: 60,
                                   ),
                                 )
                               : const Icon(
-                                  Icons.menu_book,
+                                  Icons.menu_book_rounded,
                                   size: 60,
                                 ),
                         ),
