@@ -6,7 +6,14 @@ import 'library_screen.dart';
 import 'favorites_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  final VoidCallback onThemeToggle;
+  final bool isDarkMode;
+
+  const AppShell({
+    super.key,
+    required this.onThemeToggle,
+    required this.isDarkMode,
+  });
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -42,7 +49,7 @@ class _AppShellState extends State<AppShell> {
 
       setState(() {
         loading = false;
-        errorMessage = e.toString();
+        errorMessage = 'تعذر تحميل الكتب. تحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
       });
     }
   }
@@ -66,12 +73,12 @@ class _AppShellState extends State<AppShell> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(
-                  Icons.error_outline,
+                  Icons.cloud_off_rounded,
                   size: 60,
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'حدث خطأ أثناء تحميل الكتب',
+                  'تعذر تحميل الكتب',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -82,10 +89,9 @@ class _AppShellState extends State<AppShell> {
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  textDirection: TextDirection.ltr,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
                       loading = true;
@@ -93,7 +99,8 @@ class _AppShellState extends State<AppShell> {
                     });
                     loadBooks();
                   },
-                  child: const Text('إعادة المحاولة'),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة'),
                 ),
               ],
             ),
@@ -105,7 +112,7 @@ class _AppShellState extends State<AppShell> {
     final List<Widget> screens = [
       HomeScreen(
         books: books,
-        onTheme: () {},
+        onTheme: widget.onThemeToggle,
       ),
       LibraryScreen(
         books: books,
