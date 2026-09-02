@@ -1,0 +1,41 @@
+name: Install KITARA package
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'KITARA_FINAL_UPLOAD.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract KITARA package
+        run: |
+          rm -rf .tmp_kitara
+          mkdir .tmp_kitara
+          unzip -o KITARA_FINAL_UPLOAD.zip -d .tmp_kitara
+
+          # Remove the temporary package from the repository workspace.
+          rm -f KITARA_FINAL_UPLOAD.zip
+
+          # Copy the package contents over the repository.
+          cp -a .tmp_kitara/. .
+
+          rm -rf .tmp_kitara
+
+      - name: Commit installed package
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "Install KITARA complete package" || echo "No changes to commit"
+          git push
