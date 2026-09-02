@@ -33,14 +33,94 @@ class DownloadOptionsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
+
             const Icon(
               Icons.download,
               size: 80,
             ),
+
             const SizedBox(height: 20),
+
             Text(
               book.title,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 22,
-                font
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'التحميل المباشر سيكون متاحًا للمشتركين المدفوعين.',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.workspace_premium),
+              label: const Text('تحميل مباشر — للمشتركين'),
+            ),
+
+            const SizedBox(height: 16),
+
+            OutlinedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (dialogContext) {
+                    return AlertDialog(
+                      title: const Text('تحميل مجاني'),
+                      content: const Text(
+                        'شاهد الإعلان أولًا، وبعد انتهاء الإعلان سيتم فتح رابط التحميل.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                          },
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(dialogContext);
+
+                            await Future.delayed(
+                              const Duration(seconds: 3),
+                            );
+
+                            if (context.mounted) {
+                              await openDownloadLink();
+                            }
+                          },
+                          child: const Text('مشاهدة الإعلان'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('تحميل مجاني — شاهد إعلانًا'),
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'ملاحظة: النسخة الحالية تحاكي الإعلان لمدة 3 ثوانٍ. '
+              'سيتم ربط إعلان Rewarded حقيقي لاحقًا.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
