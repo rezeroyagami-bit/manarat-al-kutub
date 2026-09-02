@@ -13,18 +13,19 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
-  runApp(const ManaratApp());
+  runApp(const KitaraApp());
 }
 
-class ManaratApp extends StatefulWidget {
-  const ManaratApp({super.key});
+class KitaraApp extends StatefulWidget {
+  const KitaraApp({super.key});
 
   @override
-  State<ManaratApp> createState() => _ManaratAppState();
+  State<KitaraApp> createState() => _KitaraAppState();
 }
 
-class _ManaratAppState extends State<ManaratApp> {
+class _KitaraAppState extends State<KitaraApp> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  bool isDarkMode = false;
 
   @override
   void initState() {
@@ -40,8 +41,14 @@ class _ManaratAppState extends State<ManaratApp> {
         AssetSource('kitara_intro.wav'),
       );
     } catch (_) {
-      // إذا تعذر تشغيل الصوت، يستمر التطبيق بشكل طبيعي.
+      // يستمر التطبيق بشكل طبيعي إذا تعذر تشغيل الصوت.
     }
+  }
+
+  void toggleTheme() {
+    setState(() {
+      isDarkMode = !isDarkMode;
+    });
   }
 
   @override
@@ -52,14 +59,65 @@ class _ManaratAppState extends State<ManaratApp> {
 
   @override
   Widget build(BuildContext context) {
+    const orange = Color(0xFFF28C28);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'KITARA — كيتارا',
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF4B3F72),
-        scaffoldBackgroundColor: const Color(0xFFF8F7FB),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: orange,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: orange.withValues(alpha: 0.18),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) {
+              if (states.contains(WidgetState.selected)) {
+                return const IconThemeData(color: orange);
+              }
+              return const IconThemeData(color: Colors.grey);
+            },
+          ),
+        ),
       ),
+
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: orange,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF121212),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: const Color(0xFF1E1E1E),
+          indicatorColor: orange.withValues(alpha: 0.25),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) {
+              if (states.contains(WidgetState.selected)) {
+                return const IconThemeData(color: orange);
+              }
+              return const IconThemeData(color: Colors.grey);
+            },
+          ),
+        ),
+      ),
+
       home: const WelcomeScreen(),
     );
   }
@@ -80,9 +138,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
 
+      final appState =
+          context.findAncestorStateOfType<_KitaraAppState>();
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const AppShell(),
+          builder: (_) => AppShell(
+            onThemeToggle: appState?.toggleTheme ?? () {},
+            isDarkMode: appState?.isDarkMode ?? false,
+          ),
         ),
       );
     });
@@ -90,16 +154,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const orange = Color(0xFFF28C28);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FB),
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.auto_stories_rounded,
-              size: 90,
-              color: Color(0xFF4B3F72),
+            Image.asset(
+              'assets/kitara_icon.png',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
             const Text(
@@ -107,7 +174,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               style: TextStyle(
                 fontSize: 38,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF4B3F72),
+                color: orange,
                 letterSpacing: 2,
               ),
             ),
@@ -120,10 +187,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'مرحبًا بك في عالم الكتب',
               style: TextStyle(
                 fontSize: 18,
+                color: Colors.grey.shade700,
               ),
             ),
           ],
