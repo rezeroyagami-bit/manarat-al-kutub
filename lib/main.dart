@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'services/supabase_config.dart';
 import 'screens/app_shell.dart';
 
@@ -25,11 +26,6 @@ class ManaratApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF4B3F72),
-        scaffoldBackgroundColor: const Color(0xFFF8F7FB),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
       ),
       home: const AppShell(),
     );
