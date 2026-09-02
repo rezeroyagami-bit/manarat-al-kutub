@@ -17,6 +17,7 @@ class _AppShellState extends State<AppShell> {
 
   List<Book> books = [];
   bool loading = true;
+  String? errorMessage;
   int currentIndex = 0;
 
   @override
@@ -29,18 +30,20 @@ class _AppShellState extends State<AppShell> {
     try {
       final result = await _supabaseService.getBooks();
 
-      if (mounted) {
-        setState(() {
-          books = result;
-          loading = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        books = result;
+        loading = false;
+        errorMessage = null;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+        errorMessage = e.toString();
+      });
     }
   }
 
@@ -54,13 +57,62 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
-    final screens = [
+    if (errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 60,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'حدث خطأ أثناء تحميل الكتب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  errorMessage!,
+                  textAlign: TextAlign.center,
+                  textDirection: TextDirection.ltr,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      loading = true;
+                      errorMessage = null;
+                    });
+                    loadBooks();
+                  },
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final List<Widget> screens = [
       HomeScreen(
         books: books,
         onTheme: () {},
       ),
-      LibraryScreen(books: books),
-      FavoritesScreen(books: books),
+      LibraryScreen(
+        books: books,
+      ),
+      FavoritesScreen(
+        books: books,
+      ),
     ];
 
     return Scaffold(
