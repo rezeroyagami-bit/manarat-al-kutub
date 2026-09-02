@@ -23,13 +23,16 @@ jobs:
           mkdir .tmp_kitara
           unzip -o KITARA_FINAL_UPLOAD.zip -d .tmp_kitara
 
-          # Remove the temporary package from the repository workspace.
-          rm -f KITARA_FINAL_UPLOAD.zip
+          # Remove workflow files from the extracted package.
+          # The existing GitHub workflow must remain unchanged because
+          # this GitHub App does not have permission to modify workflows.
+          rm -rf .tmp_kitara/.github
 
-          # Copy the package contents over the repository.
+          # Copy the application files over the repository.
           cp -a .tmp_kitara/. .
 
           rm -rf .tmp_kitara
+          rm -f KITARA_FINAL_UPLOAD.zip
 
       - name: Commit installed package
         run: |
@@ -37,5 +40,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "Install KITARA complete package" || echo "No changes to commit"
+          git commit -m "Install KITARA application package" || echo "No changes to commit"
           git push
