@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import '../models/magazine_issue.dart';
 import '../services/favorites_service.dart';
 import 'details_screen.dart';
+import 'download_options_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final List<Book> books;
@@ -17,8 +19,7 @@ class FavoritesScreen extends StatefulWidget {
       _FavoritesScreenState();
 }
 
-class _FavoritesScreenState
-    extends State<FavoritesScreen> {
+class _FavoritesScreenState extends State<FavoritesScreen> {
   final FavoritesService _favoritesService =
       FavoritesService();
 
@@ -52,21 +53,19 @@ class _FavoritesScreenState
     }
   }
 
-  Future<void> _removeFavorite(Book book) async {
+  Future<void> _removeFavorite(String id) async {
     try {
-      await _favoritesService.removeFavorite(book.id);
+      await _favoritesService.removeFavorite(id);
 
       if (!mounted) return;
 
       setState(() {
-        favoriteIds.remove(book.id);
+        favoriteIds.remove(id);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'تمت إزالة الكتاب من المفضلة',
-          ),
+          content: Text('تمت إزالة العنصر من المفضلة'),
           duration: Duration(seconds: 1),
         ),
       );
@@ -75,12 +74,68 @@ class _FavoritesScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'تعذر إزالة العنصر من المفضلة.',
-          ),
+          content: Text('تعذر إزالة العنصر من المفضلة.'),
         ),
       );
     }
+  }
+
+  Future<void> _openBook(Book book) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailsScreen(
+          book: book,
+        ),
+      ),
+    );
+
+    await _loadFavorites();
+  }
+
+  Future<void> _openIssue(Book book) async {
+    final issue = MagazineIssue(
+      id: book.id,
+      magazineId: '',
+      issueNumber: _extractIssueNumber(book.title),
+      title: book.title,
+      description: book.description,
+      coverUrl: book.coverUrl,
+      downloadUrl: book.downloadUrl,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DownloadOptionsScreen(
+          book: Book(
+            id: issue.id,
+            title: issue.title ??
+                'العدد ${issue.issueNumber}',
+            author: book.author,
+            description: issue.description,
+            category: 'مجلات',
+            coverUrl: issue.coverUrl,
+            downloadUrl: issue.downloadUrl,
+            isMagazine: true,
+          ),
+        ),
+      ),
+    );
+
+    await _loadFavorites();
+  }
+
+  int _extractIssueNumber(String title) {
+    final match = RegExp(
+      r'العدد\s+(\d+)',
+    ).firstMatch(title);
+
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 0;
+    }
+
+    return 0;
   }
 
   @override
@@ -99,48 +154,45 @@ class _FavoritesScreenState
         )
         .toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'المفضلة',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'المفضلة',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      ),
-      body: favoriteBooks.isEmpty
-          ? _buildEmptyState()
-          : RefreshIndicator(
-              onRefresh: _loadFavorites,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: favoriteBooks.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final book = favoriteBooks[index];
+        body: favoriteBooks.isEmpty
+            ? _buildEmptyState()
+            : RefreshIndicator(
+                onRefresh: _loadFavorites,
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: favoriteBooks.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final book = favoriteBooks[index];
 
-                  return _FavoriteCard(
-                    book: book,
-                    onRemove: () =>
-                        _removeFavorite(book),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              DetailsScreen(
-                            book: book,
-                          ),
-                        ),
-                      );
-
-                      await _loadFavorites();
-                    },
-                  );
-                },
+                    return _FavoriteCard(
+                      book: book,
+                      onRemove: () =>
+                          _removeFavorite(book.id),
+                      onTap: () {
+                        if (book.isMagazine) {
+                          _openIssue(book);
+                        } else {
+                          _openBook(book);
+                        }
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -158,8 +210,7 @@ class _FavoritesScreenState
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color:
-                    orange.withValues(alpha: 0.12),
+                color: orange.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -178,7 +229,7 @@ class _FavoritesScreenState
             ),
             const SizedBox(height: 10),
             Text(
-              'أضف الكتب والمجلات التي تعجبك إلى المفضلة\n'
+              'أضف الكتب والأعداد التي تعجبك إلى المفضلة\n'
               'لتجدها هنا بسهولة.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -229,7 +280,7 @@ class _FavoriteCard extends StatelessWidget {
                   borderRadius:
                       BorderRadius.circular(10),
                   child: book.coverUrl != null &&
-                          book.coverUrl!.isNotEmpty
+                          book.coverUrl!.trim().isNotEmpty
                       ? Image.network(
                           book.coverUrl!,
                           fit: BoxFit.cover,
@@ -283,8 +334,7 @@ class _FavoriteCard extends StatelessWidget {
                           TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 14,
-                        color:
-                            Colors.grey.shade600,
+                        color: Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 7),
@@ -302,7 +352,9 @@ class _FavoriteCard extends StatelessWidget {
                             BorderRadius.circular(12),
                       ),
                       child: Text(
-                        book.category,
+                        book.isMagazine
+                            ? 'عدد مجلة'
+                            : book.category,
                         style: const TextStyle(
                           fontSize: 11,
                           color: orange,
