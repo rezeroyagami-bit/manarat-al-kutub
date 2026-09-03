@@ -7,7 +7,6 @@ import 'details_screen.dart';
 import 'about_screen.dart';
 import 'magazine_screen.dart';
 import 'support_screen.dart';
-import 'favorites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Book> books;
@@ -163,17 +162,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void openFavorites() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => FavoritesScreen(
-          books: widget.books,
-        ),
-      ),
-    );
-  }
-
   Future<void> refreshContent() async {
     await Future.delayed(
       const Duration(milliseconds: 400),
@@ -207,15 +195,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: openSupport,
             icon: const Icon(
               Icons.support_agent_rounded,
-              color: orange,
-            ),
-          ),
-
-          IconButton(
-            tooltip: 'المفضلة',
-            onPressed: openFavorites,
-            icon: const Icon(
-              Icons.favorite_border_rounded,
               color: orange,
             ),
           ),
