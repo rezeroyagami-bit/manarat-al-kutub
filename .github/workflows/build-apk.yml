@@ -23,6 +23,12 @@ jobs:
       - name: Create Android project
         run: flutter create . --platforms=android
 
+      - name: Download Amiri font
+        run: |
+          mkdir -p assets/fonts
+          curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
+          curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
+
       - name: Configure Android app
         run: |
           python - <<'PY'
