@@ -7,10 +7,6 @@ class SupabaseService {
   final SupabaseClient _client =
       Supabase.instance.client;
 
-  // ============================================================
-  // الكتب والمحتوى الحالي
-  // ============================================================
-
   Future<List<Book>> getBooks() async {
     final response = await _client
         .from('books')
@@ -25,10 +21,6 @@ class SupabaseService {
         )
         .toList();
   }
-
-  // ============================================================
-  // أعداد المجلات
-  // ============================================================
 
   Future<List<MagazineIssue>> getMagazineIssues(
     String magazineId,
@@ -48,10 +40,6 @@ class SupabaseService {
         .toList();
   }
 
-  // ============================================================
-  // جلب مجلة باسمها
-  // ============================================================
-
   Future<Map<String, dynamic>?> getMagazineByName(
     String name,
   ) async {
@@ -64,15 +52,25 @@ class SupabaseService {
     return response;
   }
 
-  // ============================================================
-  // جلب كل المجلات
-  // ============================================================
-
   Future<List<Map<String, dynamic>>> getMagazines() async {
     final response = await _client
         .from('magazines')
         .select()
         .order('created_at', ascending: false);
+
+    return (response as List)
+        .map(
+          (item) => item as Map<String, dynamic>,
+        )
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getNewsTicker() async {
+    final response = await _client
+        .from('news_ticker')
+        .select()
+        .eq('is_active', true)
+        .order('sort_order', ascending: true);
 
     return (response as List)
         .map(
