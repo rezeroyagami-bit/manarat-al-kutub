@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../services/supabase_service.dart';
+import '../services/favorites_service.dart';
 import 'details_screen.dart';
 import 'about_screen.dart';
 import 'magazine_screen.dart';
@@ -564,6 +565,100 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ------------------------------------------------------------
+// زر المفضلة
+// ------------------------------------------------------------
+
+class _FavoriteButton extends StatefulWidget {
+  final String bookId;
+
+  const _FavoriteButton({
+    required this.bookId,
+  });
+
+  @override
+  State<_FavoriteButton> createState() =>
+      _FavoriteButtonState();
+}
+
+class _FavoriteButtonState
+    extends State<_FavoriteButton> {
+  final FavoritesService _favoritesService =
+      FavoritesService();
+
+  bool isFavorite = false;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    final value =
+        await _favoritesService.isFavorite(widget.bookId);
+
+    if (!mounted) return;
+
+    setState(() {
+      isFavorite = value;
+      isLoading = false;
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (isLoading) return;
+
+    setState(() {
+      isFavorite = !isFavorite;
+    });
+
+    try {
+      await _favoritesService
+          .toggleFavorite(widget.bookId);
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        isFavorite = !isFavorite;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تعذر حفظ المفضلة.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.45),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: _toggleFavorite,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(
+            isFavorite
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
+            color: isFavorite
+                ? const Color(0xFFF28C28)
+                : Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
 // بطاقة الكتب الأفقية
 // ------------------------------------------------------------
 
@@ -590,8 +685,22 @@ class _BookHorizontalCard extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: _Cover(
-                url: book.coverUrl,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: _Cover(
+                      url: book.coverUrl,
+                    ),
+                  ),
+
+                  Positioned(
+                    top: 7,
+                    right: 7,
+                    child: _FavoriteButton(
+                      bookId: book.id,
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -704,8 +813,22 @@ class _MagazineCard extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(
-                  child: _Cover(
-                    url: book.coverUrl,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: _Cover(
+                          url: book.coverUrl,
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 7,
+                        right: 7,
+                        child: _FavoriteButton(
+                          bookId: book.id,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -784,8 +907,22 @@ class _BookCard extends StatelessWidget {
       child: Column(
         children: [
           Expanded(
-            child: _Cover(
-              url: book.coverUrl,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: _Cover(
+                    url: book.coverUrl,
+                  ),
+                ),
+
+                Positioned(
+                  top: 7,
+                  right: 7,
+                  child: _FavoriteButton(
+                    bookId: book.id,
+                  ),
+                ),
+              ],
             ),
           ),
 
