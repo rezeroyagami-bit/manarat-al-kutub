@@ -10,16 +10,34 @@ import 'screens/app_shell.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    publishableKey: supabasePublishableKey,
-  );
+  // القيم الافتراضية حتى لا يتوقف التطبيق عند حدوث مشكلة
+  // أثناء قراءة الإعدادات أو تهيئة الخدمات.
+  bool savedDarkMode = false;
 
-  // تهيئة Google Mobile Ads
-  await MobileAds.instance.initialize();
+  // تهيئة Supabase بأمان.
+  try {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      publishableKey: supabasePublishableKey,
+    );
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
 
-  final prefs = await SharedPreferences.getInstance();
-  final savedDarkMode = prefs.getBool('dark_mode') ?? false;
+  // تهيئة Google Mobile Ads بأمان.
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e) {
+    debugPrint('AdMob initialization error: $e');
+  }
+
+  // قراءة الوضع الليلي بأمان.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    savedDarkMode = prefs.getBool('dark_mode') ?? false;
+  } catch (e) {
+    debugPrint('SharedPreferences error: $e');
+  }
 
   runApp(
     KitaraApp(
@@ -55,31 +73,39 @@ class _KitaraAppState extends State<KitaraApp> {
   }
 
   Future<void> _playIntro() async {
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
-
     try {
+      await Future.delayed(
+        const Duration(milliseconds: 400),
+      );
+
+      if (!mounted) return;
+
       await _audioPlayer.play(
         AssetSource('kitara_intro.wav'),
       );
-    } catch (_) {
-      // يستمر التطبيق بشكل طبيعي إذا تعذر تشغيل الصوت.
+    } catch (e) {
+      // فشل الصوت لا يؤدي إلى إغلاق التطبيق.
+      debugPrint('Intro audio error: $e');
     }
   }
 
   Future<void> toggleTheme() async {
+    if (!mounted) return;
+
     setState(() {
       isDarkMode = !isDarkMode;
     });
 
-    final prefs =
-        await SharedPreferences.getInstance();
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setBool(
-      'dark_mode',
-      isDarkMode,
-    );
+      await prefs.setBool(
+        'dark_mode',
+        isDarkMode,
+      );
+    } catch (e) {
+      debugPrint('Theme save error: $e');
+    }
   }
 
   @override
@@ -337,6 +363,18 @@ class _WelcomeScreenState
                   width: 120,
                   height: 120,
                   fit: BoxFit.contain,
+                  errorBuilder:
+                      (context, error, stackTrace) {
+                    return const SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: Icon(
+                        Icons.menu_book,
+                        size: 80,
+                        color: orange,
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 24),
