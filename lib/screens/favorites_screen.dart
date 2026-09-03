@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../models/magazine_issue.dart';
 import '../services/favorites_service.dart';
+import '../services/supabase_service.dart';
 import 'details_screen.dart';
 import 'download_options_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final List<Book> books;
+  final SupabaseService supabaseService;
 
   const FavoritesScreen({
     super.key,
     required this.books,
+    required this.supabaseService,
   });
 
   @override
@@ -24,7 +27,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       FavoritesService();
 
   Set<String> favoriteIds = {};
+
+  List<Book> favoriteBooks = [];
+  List<MagazineIssue> favoriteIssues = [];
+
   bool loading = true;
+
+  static const orange = Color(0xFFF28C28);
 
   @override
   void initState() {
@@ -33,14 +42,48 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _loadFavorites() async {
+    if (mounted) {
+      setState(() {
+        loading = true;
+      });
+    }
+
     try {
       final saved =
           await _favoritesService.getFavorites();
+
+      final booksResult = widget.books
+          .where(
+            (book) => saved.contains(book.id),
+          )
+          .toList();
+
+      final List<MagazineIssue> allIssues = [];
+
+      final magazines =
+          await widget.supabaseService.getMagazines();
+
+      for (final magazine in magazines) {
+        final magazineId =
+            magazine['id'] as String;
+
+        final issues = await widget
+            .supabaseService
+            .getMagazineIssues(magazineId);
+
+        for (final issue in issues) {
+          if (saved.contains(issue.id)) {
+            allIssues.add(issue);
+          }
+        }
+      }
 
       if (!mounted) return;
 
       setState(() {
         favoriteIds = saved;
+        favoriteBooks = booksResult;
+        favoriteIssues = allIssues;
         loading = false;
       });
     } catch (_) {
@@ -48,6 +91,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
       setState(() {
         favoriteIds = {};
+        favoriteBooks = [];
+        favoriteIssues = [];
         loading = false;
       });
     }
@@ -61,11 +106,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
       setState(() {
         favoriteIds.remove(id);
+
+        favoriteBooks.removeWhere(
+          (book) => book.id == id,
+        );
+
+        favoriteIssues.removeWhere(
+          (issue) => issue.id == id,
+        );
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تمت إزالة العنصر من المفضلة'),
+          content: Text(
+            'تمت إزالة العنصر من المفضلة',
+          ),
           duration: Duration(seconds: 1),
         ),
       );
@@ -74,7 +129,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تعذر إزالة العنصر من المفضلة.'),
+          content: Text(
+            'تعذر إزالة العنصر من المفضلة.',
+          ),
         ),
       );
     }
@@ -93,32 +150,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     await _loadFavorites();
   }
 
-  Future<void> _openIssue(Book book) async {
-    final issue = MagazineIssue(
-      id: book.id,
-      magazineId: '',
-      issueNumber: _extractIssueNumber(book.title),
-      title: book.title,
-      description: book.description,
-      coverUrl: book.coverUrl,
-      downloadUrl: book.downloadUrl,
+  Future<void> _openIssue(
+    MagazineIssue issue,
+  ) async {
+    final book = Book(
+      id: issue.id,
+      title: issue.title ??
+          'العدد ${issue.issueNumber}',
+      author: 'مجلة',
+      description: issue.description,
+      category: 'مجلات',
+      coverUrl: issue.coverUrl,
+      downloadUrl: issue.downloadUrl,
+      isMagazine: true,
     );
 
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => DownloadOptionsScreen(
-          book: Book(
-            id: issue.id,
-            title: issue.title ??
-                'العدد ${issue.issueNumber}',
-            author: book.author,
-            description: issue.description,
-            category: 'مجلات',
-            coverUrl: issue.coverUrl,
-            downloadUrl: issue.downloadUrl,
-            isMagazine: true,
-          ),
+          book: book,
         ),
       ),
     );
@@ -126,33 +177,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     await _loadFavorites();
   }
 
-  int _extractIssueNumber(String title) {
-    final match = RegExp(
-      r'العدد\s+(\d+)',
-    ).firstMatch(title);
-
-    if (match != null) {
-      return int.tryParse(match.group(1)!) ?? 0;
-    }
-
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (loading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            color: orange,
+          ),
         ),
       );
     }
 
-    final favoriteBooks = widget.books
-        .where(
-          (book) => favoriteIds.contains(book.id),
-        )
-        .toList();
+    final hasFavorites =
+        favoriteBooks.isNotEmpty ||
+        favoriteIssues.isNotEmpty;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -165,31 +204,76 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
           ),
         ),
-        body: favoriteBooks.isEmpty
+        body: !hasFavorites
             ? _buildEmptyState()
             : RefreshIndicator(
+                color: orange,
                 onRefresh: _loadFavorites,
-                child: ListView.separated(
+                child: ListView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: favoriteBooks.length,
-                  separatorBuilder: (_, __) =>
+                  children: [
+                    if (favoriteBooks.isNotEmpty) ...[
+                      const Text(
+                        'الكتب',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final book = favoriteBooks[index];
+                      ...favoriteBooks.map(
+                        (book) => Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child: _FavoriteBookCard(
+                            book: book,
+                            onTap: () =>
+                                _openBook(book),
+                            onRemove: () =>
+                                _removeFavorite(
+                              book.id,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
 
-                    return _FavoriteCard(
-                      book: book,
-                      onRemove: () =>
-                          _removeFavorite(book.id),
-                      onTap: () {
-                        if (book.isMagazine) {
-                          _openIssue(book);
-                        } else {
-                          _openBook(book);
-                        }
-                      },
-                    );
-                  },
+                    if (favoriteIssues.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+
+                      const Text(
+                        'أعداد المجلات',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      ...favoriteIssues.map(
+                        (issue) => Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child: _FavoriteIssueCard(
+                            issue: issue,
+                            onTap: () =>
+                                _openIssue(issue),
+                            onRemove: () =>
+                                _removeFavorite(
+                              issue.id,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
       ),
@@ -197,8 +281,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildEmptyState() {
-    const orange = Color(0xFFF28C28);
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -210,7 +292,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: orange.withValues(alpha: 0.12),
+                color:
+                    orange.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -219,7 +302,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 color: orange,
               ),
             ),
+
             const SizedBox(height: 20),
+
             const Text(
               'المفضلة فارغة',
               style: TextStyle(
@@ -227,7 +312,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 10),
+
             Text(
               'أضف الكتب والأعداد التي تعجبك إلى المفضلة\n'
               'لتجدها هنا بسهولة.',
@@ -245,21 +332,89 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 }
 
-class _FavoriteCard extends StatelessWidget {
-  final Book book;
-  final VoidCallback onRemove;
-  final VoidCallback onTap;
+// ============================================================
+// بطاقة الكتاب
+// ============================================================
 
-  const _FavoriteCard({
+class _FavoriteBookCard extends StatelessWidget {
+  final Book book;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const _FavoriteBookCard({
     required this.book,
-    required this.onRemove,
     required this.onTap,
+    required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    return _BaseFavoriteCard(
+      coverUrl: book.coverUrl,
+      title: book.title,
+      subtitle: book.author,
+      label: book.category,
+      onTap: onTap,
+      onRemove: onRemove,
+    );
+  }
+}
 
+// ============================================================
+// بطاقة العدد
+// ============================================================
+
+class _FavoriteIssueCard extends StatelessWidget {
+  final MagazineIssue issue;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const _FavoriteIssueCard({
+    required this.issue,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _BaseFavoriteCard(
+      coverUrl: issue.coverUrl,
+      title: issue.title ??
+          'العدد ${issue.issueNumber}',
+      subtitle:
+          'العدد ${issue.issueNumber}',
+      label: 'عدد مجلة',
+      onTap: onTap,
+      onRemove: onRemove,
+    );
+  }
+}
+
+// ============================================================
+// البطاقة المشتركة
+// ============================================================
+
+class _BaseFavoriteCard extends StatelessWidget {
+  final String? coverUrl;
+  final String title;
+  final String subtitle;
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const _BaseFavoriteCard({
+    required this.coverUrl,
+    required this.title,
+    required this.subtitle,
+    required this.label,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  static const orange = Color(0xFFF28C28);
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
@@ -274,37 +429,21 @@ class _FavoriteCard extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 62,
-                height: 82,
+                width: 65,
+                height: 88,
                 child: ClipRRect(
                   borderRadius:
                       BorderRadius.circular(10),
-                  child: book.coverUrl != null &&
-                          book.coverUrl!.trim().isNotEmpty
+                  child: coverUrl != null &&
+                          coverUrl!.trim().isNotEmpty
                       ? Image.network(
-                          book.coverUrl!,
+                          coverUrl!,
                           fit: BoxFit.cover,
                           errorBuilder:
                               (_, __, ___) =>
-                                  Container(
-                            color: orange.withValues(
-                              alpha: 0.10,
-                            ),
-                            child: const Icon(
-                              Icons.menu_book_rounded,
-                              color: orange,
-                            ),
-                          ),
+                                  const _FavoritePlaceholder(),
                         )
-                      : Container(
-                          color: orange.withValues(
-                            alpha: 0.10,
-                          ),
-                          child: const Icon(
-                            Icons.menu_book_rounded,
-                            color: orange,
-                          ),
-                        ),
+                      : const _FavoritePlaceholder(),
                 ),
               ),
 
@@ -316,7 +455,7 @@ class _FavoriteCard extends StatelessWidget {
                       CrossAxisAlignment.start,
                   children: [
                     Text(
-                      book.title,
+                      title,
                       maxLines: 2,
                       overflow:
                           TextOverflow.ellipsis,
@@ -326,9 +465,11 @@ class _FavoriteCard extends StatelessWidget {
                         height: 1.35,
                       ),
                     ),
+
                     const SizedBox(height: 6),
+
                     Text(
-                      book.author,
+                      subtitle,
                       maxLines: 1,
                       overflow:
                           TextOverflow.ellipsis,
@@ -337,7 +478,9 @@ class _FavoriteCard extends StatelessWidget {
                         color: Colors.grey.shade600,
                       ),
                     ),
+
                     const SizedBox(height: 7),
+
                     Container(
                       padding:
                           const EdgeInsets.symmetric(
@@ -352,9 +495,7 @@ class _FavoriteCard extends StatelessWidget {
                             BorderRadius.circular(12),
                       ),
                       child: Text(
-                        book.isMagazine
-                            ? 'عدد مجلة'
-                            : book.category,
+                        label,
                         style: const TextStyle(
                           fontSize: 11,
                           color: orange,
@@ -378,6 +519,21 @@ class _FavoriteCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FavoritePlaceholder extends StatelessWidget {
+  const _FavoritePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF3F3F3),
+      child: const Icon(
+        Icons.menu_book_rounded,
+        color: Color(0xFFF28C28),
       ),
     );
   }
