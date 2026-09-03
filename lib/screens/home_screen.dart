@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import '../services/supabase_service.dart';
 import 'details_screen.dart';
 import 'about_screen.dart';
+import 'magazine_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Book> books;
@@ -81,6 +83,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> openMagazine(Book book) async {
+    final magazineName = book.title.contains(' — العدد')
+        ? book.title.split(' — العدد').first.trim()
+        : book.title.trim();
+
+    try {
+      final service = SupabaseService();
+
+      final magazine =
+          await service.getMagazineByName(magazineName);
+
+      if (!mounted) return;
+
+      if (magazine == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تعذر العثور على بيانات المجلة.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MagazineScreen(
+            magazineId: magazine['id'] as String,
+            magazineName: magazine['name'] as String,
+            description:
+                magazine['description'] as String?,
+            coverUrl:
+                magazine['cover_url'] as String?,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تعذر فتح المجلة. تحقق من اتصال الإنترنت.',
+          ),
+        ),
+      );
+    }
+  }
+
   void openAbout() {
     Navigator.push(
       context,
@@ -126,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
               color: orange,
             ),
           ),
-
           IconButton(
             tooltip:
                 isDark ? 'الوضع النهاري' : 'الوضع الليلي',
@@ -138,18 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
               color: orange,
             ),
           ),
-
           const SizedBox(width: 8),
         ],
       ),
-
       body: RefreshIndicator(
         color: orange,
         onRefresh: refreshContent,
         child: CustomScrollView(
           physics:
               const AlwaysScrollableScrollPhysics(),
-
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -188,7 +236,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 18),
 
-                    // البحث
                     Container(
                       decoration: BoxDecoration(
                         color: isDark
@@ -247,7 +294,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 24),
 
-                    // نتائج البحث
                     if (searchText.isNotEmpty) ...[
                       _sectionHeader(
                         title: 'نتائج البحث',
@@ -255,7 +301,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                     ],
 
-                    // الأقسام
                     if (searchText.isEmpty) ...[
                       _sectionHeader(
                         title: 'تصفح حسب القسم',
@@ -322,7 +367,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 28),
 
-                      // الكتب
                       _sectionHeader(
                         title: 'الكتب',
                       ),
@@ -363,7 +407,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 30),
 
-                      // المجلات القديمة
                       _sectionHeader(
                         title: 'المجلات القديمة',
                       ),
@@ -396,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               return _MagazineCard(
                                 book: magazine,
                                 onTap: () =>
-                                    openBook(magazine),
+                                    openMagazine(magazine),
                               );
                             },
                           ),
@@ -418,7 +461,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // نتائج البحث / أحدث المحتوى
             if (results.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -443,7 +485,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       return _BookCard(
                         book: book,
-                        onTap: () => openBook(book),
+                        onTap: () {
+                          if (book.isMagazine) {
+                            openMagazine(book);
+                          } else {
+                            openBook(book);
+                          }
+                        },
                       );
                     },
                     childCount: results.length,
@@ -507,9 +555,7 @@ class _BookHorizontalCard extends StatelessWidget {
                 url: book.coverUrl,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               book.title,
               maxLines: 2,
@@ -520,9 +566,7 @@ class _BookHorizontalCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 3),
-
             Text(
               book.author,
               maxLines: 1,
@@ -558,10 +602,6 @@ class _MagazineCard extends StatelessWidget {
   static const orange = Color(0xFFF28C28);
 
   String get magazineDescription {
-    if (book.title.contains('العربي الصغير')) {
-      return 'مجلة العربي الصغير هي نافذة ثقافية ساحرة وأيقونة أدب الأطفال في العالم العربي. تصدر شهرياً عن وزارة الإعلام الكويتية منذ عام 1986، لتأخذ القراء الصغار في رحلة ممتعة تجمع بين العلوم والفنون والقصص المصورة.';
-    }
-
     if (book.description != null &&
         book.description!.trim().isNotEmpty) {
       return book.description!;
@@ -705,9 +745,7 @@ class _BookCard extends StatelessWidget {
               url: book.coverUrl,
             ),
           ),
-
           const SizedBox(height: 9),
-
           Text(
             book.title,
             maxLines: 2,
@@ -718,9 +756,7 @@ class _BookCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 2),
-
           Text(
             book.author,
             maxLines: 1,
@@ -894,9 +930,7 @@ class _EmptyState
               color:
                   const Color(0xFFF28C28),
             ),
-
             const SizedBox(height: 18),
-
             Text(
               hasSearch
                   ? 'لم نجد ما تبحث عنه'
@@ -907,9 +941,7 @@ class _EmptyState
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               hasSearch
                   ? 'جرّب البحث بعنوان أو مؤلف مختلف.'
