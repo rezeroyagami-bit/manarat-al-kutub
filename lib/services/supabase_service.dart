@@ -1,8 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/book.dart';
+import '../models/magazine_issue.dart';
 
 class SupabaseService {
-  final SupabaseClient _client = Supabase.instance.client;
+  final SupabaseClient _client =
+      Supabase.instance.client;
+
+  // ============================================================
+  // الكتب والمحتوى الحالي
+  // ============================================================
 
   Future<List<Book>> getBooks() async {
     final response = await _client
@@ -11,7 +18,66 @@ class SupabaseService {
         .order('created_at', ascending: false);
 
     return (response as List)
-        .map((item) => Book.fromMap(item))
+        .map(
+          (item) => Book.fromMap(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  // ============================================================
+  // أعداد المجلات
+  // ============================================================
+
+  Future<List<MagazineIssue>> getMagazineIssues(
+    String magazineId,
+  ) async {
+    final response = await _client
+        .from('magazine_issues')
+        .select()
+        .eq('magazine_id', magazineId)
+        .order('issue_number', ascending: true);
+
+    return (response as List)
+        .map(
+          (item) => MagazineIssue.fromMap(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  // ============================================================
+  // جلب مجلة باسمها
+  // ============================================================
+
+  Future<Map<String, dynamic>?> getMagazineByName(
+    String name,
+  ) async {
+    final response = await _client
+        .from('magazines')
+        .select()
+        .eq('name', name)
+        .maybeSingle();
+
+    return response;
+  }
+
+  // ============================================================
+  // جلب كل المجلات
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> getMagazines() async {
+    final response = await _client
+        .from('magazines')
+        .select()
+        .order('created_at', ascending: false);
+
+    return (response as List)
+        .map(
+          (item) => item as Map<String, dynamic>,
+        )
         .toList();
   }
 }
