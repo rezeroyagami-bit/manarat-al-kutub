@@ -31,6 +31,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const orange = Color(0xFFF28C28);
 
+  List<String> _newsItems = [];
+  bool _isLoadingNews = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNewsTicker();
+  }
+
+  Future<void> _loadNewsTicker() async {
+    try {
+      final service = SupabaseService();
+      final news = await service.getNewsTicker();
+
+      if (!mounted) return;
+
+      setState(() {
+        _newsItems = news
+            .map((item) => item['text'] as String)
+            .where((text) => text.trim().isNotEmpty)
+            .toList();
+
+        _isLoadingNews = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _newsItems = [];
+        _isLoadingNews = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -167,6 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
       const Duration(milliseconds: 400),
     );
 
+    await _loadNewsTicker();
+
     if (mounted) {
       setState(() {});
     }
@@ -267,6 +303,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             : Colors.black54,
                       ),
                     ),
+
+                    // ------------------------------------------------
+                    // شريط الأخبار
+                    // ------------------------------------------------
+
+                    if (!_isLoadingNews &&
+                        _newsItems.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+
+                      _NewsTicker(
+                        newsItems: _newsItems,
+                      ),
+                    ],
 
                     const SizedBox(height: 18),
 
@@ -553,6 +602,126 @@ class _HomeScreenState extends State<HomeScreen> {
       style: const TextStyle(
         fontSize: 21,
         fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// شريط الأخبار المتحرك
+// ------------------------------------------------------------
+
+class _NewsTicker extends StatefulWidget {
+  final List<String> newsItems;
+
+  const _NewsTicker({
+    required this.newsItems,
+  });
+
+  @override
+  State<_NewsTicker> createState() =>
+      _NewsTickerState();
+}
+
+class _NewsTickerState
+    extends State<_NewsTicker>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.newsItems.join('     •     ');
+
+    return Container(
+      height: 35,
+      width: double.infinity,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: const Color(0xFF159447),
+        borderRadius:
+            BorderRadius.circular(7),
+      ),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final textPainter = TextPainter(
+                  text: TextSpan(
+                    text: text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  textDirection: TextDirection.ltr,
+                )..layout();
+
+                final textWidth =
+                    textPainter.width;
+
+                final availableWidth =
+                    constraints.maxWidth;
+
+                final totalWidth =
+                    textWidth + availableWidth;
+
+                final offset =
+                    _controller.value *
+                        totalWidth;
+
+                return Stack(
+                  children: [
+                    Positioned(
+                      left:
+                          availableWidth - offset,
+                      top: 0,
+                      child: SizedBox(
+                        width: textWidth,
+                        height: 35,
+                        child: Center(
+                          child: Text(
+                            text,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow:
+                                TextOverflow.visible,
+                            style:
+                                const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
