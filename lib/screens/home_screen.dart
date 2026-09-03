@@ -5,6 +5,7 @@ import '../services/supabase_service.dart';
 import 'details_screen.dart';
 import 'about_screen.dart';
 import 'magazine_screen.dart';
+import 'support_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Book> books;
@@ -153,6 +154,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void openSupport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SupportScreen(),
+      ),
+    );
+  }
+
   Future<void> refreshContent() async {
     await Future.delayed(
       const Duration(milliseconds: 400),
@@ -181,6 +191,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'الدعم والشكاوى',
+            onPressed: openSupport,
+            icon: const Icon(
+              Icons.support_agent_rounded,
+              color: orange,
+            ),
+          ),
           IconButton(
             tooltip: 'حول كِتارا',
             onPressed: openAbout,
