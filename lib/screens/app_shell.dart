@@ -93,6 +93,7 @@ class _AppShellState extends State<AppShell> {
 
       FavoritesScreen(
         books: books,
+        supabaseService: _supabaseService,
       ),
 
       DownloadsScreen(
@@ -205,19 +206,16 @@ class _LoadingScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
-
           children: [
             Container(
               width: 76,
               height: 76,
-
               decoration: BoxDecoration(
                 color:
                     orange.withValues(alpha: 0.12),
                 borderRadius:
                     BorderRadius.circular(24),
               ),
-
               child: const Icon(
                 Icons.menu_book_rounded,
                 size: 38,
@@ -283,22 +281,18 @@ class _ErrorScreen extends StatelessWidget {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
-
           child: Column(
             mainAxisAlignment:
                 MainAxisAlignment.center,
-
             children: [
               Container(
                 width: 90,
                 height: 90,
-
                 decoration: BoxDecoration(
                   color:
                       orange.withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                 ),
-
                 child: const Icon(
                   Icons.cloud_off_rounded,
                   size: 46,
@@ -311,7 +305,6 @@ class _ErrorScreen extends StatelessWidget {
               const Text(
                 'تعذر تحميل المحتوى',
                 textAlign: TextAlign.center,
-
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -323,7 +316,6 @@ class _ErrorScreen extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-
                 style: const TextStyle(
                   fontSize: 15,
                   height: 1.6,
@@ -356,11 +348,6 @@ class _ErrorScreen extends StatelessWidget {
 // ============================================================
 // شاشة تنزيلاتي
 // ============================================================
-//
-// هذه هي الواجهة الأولية للقسم.
-// سنربطها بسجل التنزيلات الحقيقي في ملف الخدمة
-// التالي حتى تحفظ التنزيلات وتظهر هنا بشكل دائم.
-// ============================================================
 
 class DownloadsScreen extends StatelessWidget {
   final List<Book> books;
@@ -372,8 +359,6 @@ class DownloadsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -397,12 +382,9 @@ class DownloadsScreen extends StatelessWidget {
             )
           : ListView.separated(
               padding: const EdgeInsets.all(20),
-
               itemCount: 0,
-
               separatorBuilder: (_, __) =>
                   const SizedBox(height: 12),
-
               itemBuilder: (_, index) {
                 return const SizedBox.shrink();
               },
