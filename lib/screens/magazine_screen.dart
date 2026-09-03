@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../models/magazine_issue.dart';
+import '../services/favorites_service.dart';
 import '../services/supabase_service.dart';
 import 'download_options_screen.dart';
 
@@ -20,13 +21,18 @@ class MagazineScreen extends StatefulWidget {
   });
 
   @override
-  State<MagazineScreen> createState() => _MagazineScreenState();
+  State<MagazineScreen> createState() =>
+      _MagazineScreenState();
 }
 
 class _MagazineScreenState extends State<MagazineScreen> {
   final SupabaseService _service = SupabaseService();
+  final FavoritesService _favoritesService =
+      FavoritesService();
 
   List<MagazineIssue> issues = [];
+  Set<String> favoriteIds = {};
+
   bool loading = true;
   String? errorMessage;
 
@@ -36,6 +42,7 @@ class _MagazineScreenState extends State<MagazineScreen> {
   void initState() {
     super.initState();
     _loadIssues();
+    _loadFavorites();
   }
 
   Future<void> _loadIssues() async {
@@ -67,10 +74,68 @@ class _MagazineScreenState extends State<MagazineScreen> {
     }
   }
 
+  Future<void> _loadFavorites() async {
+    try {
+      final saved =
+          await _favoritesService.getFavorites();
+
+      if (!mounted) return;
+
+      setState(() {
+        favoriteIds = saved;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFavorite(
+    MagazineIssue issue,
+  ) async {
+    try {
+      await _favoritesService.toggleFavorite(
+        issue.id,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        if (favoriteIds.contains(issue.id)) {
+          favoriteIds.remove(issue.id);
+        } else {
+          favoriteIds.add(issue.id);
+        }
+      });
+
+      final isFavorite =
+          favoriteIds.contains(issue.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFavorite
+                ? 'تمت إضافة العدد إلى المفضلة'
+                : 'تمت إزالة العدد من المفضلة',
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تعذر تحديث المفضلة.',
+          ),
+        ),
+      );
+    }
+  }
+
   void _openIssue(MagazineIssue issue) {
     final book = Book(
       id: issue.id,
-      title: issue.title ?? 'العدد ${issue.issueNumber}',
+      title: issue.title ??
+          'العدد ${issue.issueNumber}',
       author: widget.magazineName,
       description: issue.description,
       category: 'مجلات',
@@ -92,7 +157,8 @@ class _MagazineScreenState extends State<MagazineScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark =
-        Theme.of(context).brightness == Brightness.dark;
+        Theme.of(context).brightness ==
+            Brightness.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -107,9 +173,13 @@ class _MagazineScreenState extends State<MagazineScreen> {
         ),
         body: RefreshIndicator(
           color: orange,
-          onRefresh: _loadIssues,
+          onRefresh: () async {
+            await _loadIssues();
+            await _loadFavorites();
+          },
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics:
+                const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
@@ -228,13 +298,21 @@ class _MagazineScreenState extends State<MagazineScreen> {
                     30,
                   ),
                   sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate(
+                    delegate:
+                        SliverChildBuilderDelegate(
                       (context, index) {
                         final issue = issues[index];
 
                         return _IssueCard(
                           issue: issue,
-                          onTap: () => _openIssue(issue),
+                          isFavorite:
+                              favoriteIds.contains(
+                            issue.id,
+                          ),
+                          onFavorite: () =>
+                              _toggleFavorite(issue),
+                          onTap: () =>
+                              _openIssue(issue),
                         );
                       },
                       childCount: issues.length,
@@ -258,10 +336,14 @@ class _MagazineScreenState extends State<MagazineScreen> {
 
 class _IssueCard extends StatelessWidget {
   final MagazineIssue issue;
+  final bool isFavorite;
+  final VoidCallback onFavorite;
   final VoidCallback onTap;
 
   const _IssueCard({
     required this.issue,
+    required this.isFavorite,
+    required this.onFavorite,
     required this.onTap,
   });
 
@@ -269,41 +351,85 @@ class _IssueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Column(
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: issue.coverUrl != null &&
-                      issue.coverUrl!.trim().isNotEmpty
-                  ? Image.network(
-                      issue.coverUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) {
-                        return const _CoverPlaceholder();
-                      },
-                    )
-                  : const _CoverPlaceholder(),
-            ),
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InkWell(
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  onTap: onTap,
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(14),
+                    child: issue.coverUrl != null &&
+                            issue.coverUrl!
+                                .trim()
+                                .isNotEmpty
+                        ? Image.network(
+                            issue.coverUrl!,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) {
+                              return const _CoverPlaceholder();
+                            },
+                          )
+                        : const _CoverPlaceholder(),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                top: 7,
+                right: 7,
+                child: Material(
+                  color: Colors.white.withValues(
+                    alpha: 0.92,
+                  ),
+                  shape: const CircleBorder(),
+                  elevation: 3,
+                  child: InkWell(
+                    customBorder:
+                        const CircleBorder(),
+                    onTap: onFavorite,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(7),
+                      child: Icon(
+                        isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons
+                                .favorite_border_rounded,
+                        size: 22,
+                        color: isFavorite
+                            ? Colors.red
+                            : orange,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'العدد ${issue.issueNumber}',
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: orange,
-            ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          'العدد ${issue.issueNumber}',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: orange,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -350,14 +476,17 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(30),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment:
+              MainAxisAlignment.center,
           children: [
             const Icon(
               Icons.cloud_off_rounded,
               size: 55,
               color: Color(0xFFF28C28),
             ),
+
             const SizedBox(height: 16),
+
             Text(
               message,
               textAlign: TextAlign.center,
@@ -366,11 +495,17 @@ class _ErrorState extends StatelessWidget {
                 height: 1.6,
               ),
             ),
+
             const SizedBox(height: 20),
+
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
+              icon: const Icon(
+                Icons.refresh_rounded,
+              ),
+              label: const Text(
+                'إعادة المحاولة',
+              ),
             ),
           ],
         ),
