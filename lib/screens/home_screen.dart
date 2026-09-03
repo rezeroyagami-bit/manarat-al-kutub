@@ -84,9 +84,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> openMagazine(Book book) async {
-    final magazineName = book.title.contains(' — العدد')
-        ? book.title.split(' — العدد').first.trim()
-        : book.title.trim();
+    String magazineName = book.title.trim();
+
+    // إزالة رقم العدد من اسم المجلة
+    if (magazineName.contains(' — العدد')) {
+      magazineName =
+          magazineName.split(' — العدد').first.trim();
+    }
+
+    // إزالة كلمة "مجلة" حتى تطابق الاسم الموجود في Supabase
+    if (magazineName.startsWith('مجلة ')) {
+      magazineName =
+          magazineName.substring(5).trim();
+    }
 
     try {
       final service = SupabaseService();
@@ -112,7 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(
           builder: (_) => MagazineScreen(
             magazineId: magazine['id'] as String,
-            magazineName: magazine['name'] as String,
+            magazineName:
+                magazine['name'] as String,
             description:
                 magazine['description'] as String?,
             coverUrl:
@@ -192,12 +203,15 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
+
       body: RefreshIndicator(
         color: orange,
         onRefresh: refreshContent,
+
         child: CustomScrollView(
           physics:
               const AlwaysScrollableScrollPhysics(),
+
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -236,6 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 18),
 
+                    // البحث
                     Container(
                       decoration: BoxDecoration(
                         color: isDark
@@ -294,6 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 24),
 
+                    // نتائج البحث
                     if (searchText.isNotEmpty) ...[
                       _sectionHeader(
                         title: 'نتائج البحث',
@@ -301,6 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                     ],
 
+                    // الأقسام
                     if (searchText.isEmpty) ...[
                       _sectionHeader(
                         title: 'تصفح حسب القسم',
@@ -367,6 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 28),
 
+                      // الكتب
                       _sectionHeader(
                         title: 'الكتب',
                       ),
@@ -407,6 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 30),
 
+                      // المجلات القديمة
                       _sectionHeader(
                         title: 'المجلات القديمة',
                       ),
@@ -420,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                       else
                         SizedBox(
-                          height: 330,
+                          height: 280,
                           child: ListView.separated(
                             scrollDirection:
                                 Axis.horizontal,
@@ -447,6 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 30),
 
+                      // أحدث المحتوى
                       _sectionHeader(
                         title: 'أحدث المحتوى',
                       ),
@@ -461,6 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
+            // نتائج البحث / أحدث المحتوى
             if (results.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -555,7 +576,9 @@ class _BookHorizontalCard extends StatelessWidget {
                 url: book.coverUrl,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
               book.title,
               maxLines: 2,
@@ -566,7 +589,9 @@ class _BookHorizontalCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 3),
+
             Text(
               book.author,
               maxLines: 1,
@@ -601,13 +626,18 @@ class _MagazineCard extends StatelessWidget {
 
   static const orange = Color(0xFFF28C28);
 
-  String get magazineDescription {
-    if (book.description != null &&
-        book.description!.trim().isNotEmpty) {
-      return book.description!;
+  String get magazineName {
+    String name = book.title.trim();
+
+    if (name.contains(' — العدد')) {
+      name = name.split(' — العدد').first.trim();
     }
 
-    return 'مجلة قديمة من مجموعة KITARA.';
+    if (name.startsWith('مجلة ')) {
+      name = name.substring(5).trim();
+    }
+
+    return name;
   }
 
   @override
@@ -617,74 +647,68 @@ class _MagazineCard extends StatelessWidget {
             Brightness.dark;
 
     return SizedBox(
-      width: 245,
+      width: 210,
+
       child: Material(
         color: Colors.transparent,
+
         child: InkWell(
           borderRadius:
               BorderRadius.circular(20),
+
           onTap: onTap,
+
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding:
+                const EdgeInsets.all(10),
+
             decoration: BoxDecoration(
               color: isDark
                   ? const Color(0xFF1E1E1E)
                   : Colors.white,
+
               borderRadius:
                   BorderRadius.circular(20),
+
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(
-                    alpha: isDark ? 0.15 : 0.07,
+                    alpha:
+                        isDark ? 0.15 : 0.07,
                   ),
                   blurRadius: 12,
-                  offset: const Offset(0, 5),
+                  offset:
+                      const Offset(0, 5),
                 ),
               ],
             ),
+
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
-                  height: 165,
+                Expanded(
                   child: _Cover(
                     url: book.coverUrl,
                   ),
                 ),
 
-                const SizedBox(height: 9),
+                const SizedBox(height: 12),
 
                 Text(
-                  book.title,
+                  magazineName,
                   maxLines: 2,
                   overflow:
                       TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
+
                   style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.bold,
                   ),
                 ),
 
-                const SizedBox(height: 6),
-
-                Text(
-                  magazineDescription,
-                  maxLines: 3,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.35,
-                    color: isDark
-                        ? Colors.white70
-                        : Colors.black54,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
                 const Row(
                   mainAxisAlignment:
@@ -692,15 +716,15 @@ class _MagazineCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.menu_book_rounded,
-                      size: 15,
+                      size: 17,
                       color: orange,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: 5),
                     Text(
-                      'مجلة',
+                      'عرض المجلة',
                       style: TextStyle(
                         color: orange,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight:
                             FontWeight.bold,
                       ),
@@ -738,6 +762,7 @@ class _BookCard extends StatelessWidget {
     return _CardContainer(
       isDark: isDark,
       onTap: onTap,
+
       child: Column(
         children: [
           Expanded(
@@ -745,23 +770,34 @@ class _BookCard extends StatelessWidget {
               url: book.coverUrl,
             ),
           ),
+
           const SizedBox(height: 9),
+
           Text(
             book.title,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+            overflow:
+                TextOverflow.ellipsis,
+            textAlign:
+                TextAlign.center,
+
             style: const TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
+
           const SizedBox(height: 2),
+
           Text(
             book.author,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+            overflow:
+                TextOverflow.ellipsis,
+            textAlign:
+                TextAlign.center,
+
             style: TextStyle(
               fontSize: 12,
               color: isDark
@@ -792,28 +828,38 @@ class _CardContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
+
       child: InkWell(
         borderRadius:
             BorderRadius.circular(20),
+
         onTap: onTap,
+
         child: Container(
-          padding: const EdgeInsets.all(9),
+          padding:
+              const EdgeInsets.all(9),
+
           decoration: BoxDecoration(
             color: isDark
                 ? const Color(0xFF1E1E1E)
                 : Colors.white,
+
             borderRadius:
                 BorderRadius.circular(20),
+
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
-                  alpha: isDark ? 0.15 : 0.07,
+                  alpha:
+                      isDark ? 0.15 : 0.07,
                 ),
                 blurRadius: 12,
-                offset: const Offset(0, 5),
+                offset:
+                    const Offset(0, 5),
               ),
             ],
           ),
+
           child: child,
         ),
       ),
@@ -832,16 +878,19 @@ class _Cover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (url == null || url!.isEmpty) {
+    if (url == null ||
+        url!.trim().isEmpty) {
       return const _CoverPlaceholder();
     }
 
     return ClipRRect(
       borderRadius:
           BorderRadius.circular(14),
+
       child: Image.network(
         url!,
         fit: BoxFit.cover,
+
         errorBuilder:
             (_, __, ___) =>
                 const _CoverPlaceholder(),
@@ -850,6 +899,8 @@ class _Cover extends StatelessWidget {
   }
 }
 
+// ------------------------------------------------------------
+
 class _CoverPlaceholder
     extends StatelessWidget {
   const _CoverPlaceholder();
@@ -857,12 +908,15 @@ class _CoverPlaceholder
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF3F3F3),
+      color:
+          const Color(0xFFF3F3F3),
+
       child: const Center(
         child: Icon(
           Icons.menu_book_rounded,
           size: 48,
-          color: Color(0xFFF28C28),
+          color:
+              Color(0xFFF28C28),
         ),
       ),
     );
@@ -884,15 +938,23 @@ class _SmallEmptyState
     return Container(
       height: 75,
       width: double.infinity,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
+
+      alignment:
+          Alignment.center,
+
+      decoration:
+          BoxDecoration(
         borderRadius:
             BorderRadius.circular(16),
+
         color: Theme.of(context)
             .colorScheme
             .surfaceContainerHighest
-            .withValues(alpha: 0.35),
+            .withValues(
+              alpha: 0.35,
+            ),
       ),
+
       child: Text(
         text,
         style: const TextStyle(
@@ -917,36 +979,52 @@ class _EmptyState
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding:
+            const EdgeInsets.all(30),
+
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
+
           children: [
             Icon(
               hasSearch
                   ? Icons.search_off_rounded
                   : Icons.menu_book_rounded,
+
               size: 70,
+
               color:
                   const Color(0xFFF28C28),
             ),
+
             const SizedBox(height: 18),
+
             Text(
               hasSearch
                   ? 'لم نجد ما تبحث عنه'
                   : 'لا يوجد محتوى حاليًا',
-              textAlign: TextAlign.center,
+
+              textAlign:
+                  TextAlign.center,
+
               style: const TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
               hasSearch
                   ? 'جرّب البحث بعنوان أو مؤلف مختلف.'
                   : 'سيظهر المحتوى هنا عند إضافته.',
-              textAlign: TextAlign.center,
+
+              textAlign:
+                  TextAlign.center,
+
               style: const TextStyle(
                 fontSize: 15,
                 color: Colors.grey,
