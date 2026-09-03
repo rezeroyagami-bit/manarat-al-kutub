@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'الكل';
 
   static const orange = Color(0xFFF28C28);
-  static const redOrange = Color(0xFFE85D2A);
   static const green = Color(0xFF2E9D59);
 
   @override
@@ -46,18 +45,18 @@ class _HomeScreenState extends State<HomeScreen> {
         return matchesCategory;
       }
 
-      final title = book.title.toLowerCase();
-      final author = book.author.toLowerCase();
-      final category = book.category.toLowerCase();
-
-      final matchesSearch =
-          title.contains(query) ||
-          author.contains(query) ||
-          category.contains(query);
-
-      return matchesCategory && matchesSearch;
+      return matchesCategory &&
+          (book.title.toLowerCase().contains(query) ||
+              book.author.toLowerCase().contains(query) ||
+              book.category.toLowerCase().contains(query));
     }).toList();
   }
+
+  List<Book> get booksOnly =>
+      filteredBooks.where((book) => !book.isMagazine).toList();
+
+  List<Book> get magazinesOnly =>
+      filteredBooks.where((book) => book.isMagazine).toList();
 
   List<String> get categories {
     final values = widget.books
@@ -80,12 +79,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> refreshContent() async {
+    await Future.delayed(
+      const Duration(milliseconds: 400),
+    );
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark =
         Theme.of(context).brightness == Brightness.dark;
 
-    final books = filteredBooks;
+    final results = filteredBooks;
 
     return Scaffold(
       appBar: AppBar(
@@ -115,18 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: RefreshIndicator(
         color: orange,
-        onRefresh: () async {
-          await Future.delayed(
-            const Duration(milliseconds: 500),
-          );
-
-          if (mounted) {
-            setState(() {});
-          }
-        },
+        onRefresh: refreshContent,
 
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics:
+              const AlwaysScrollableScrollPhysics(),
 
           slivers: [
             SliverToBoxAdapter(
@@ -137,11 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   20,
                   0,
                 ),
-
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
-
                   children: [
                     Text(
                       'مرحبًا بك في كِتارا',
@@ -182,19 +182,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               : Colors.black12,
                         ),
                       ),
-
                       child: TextField(
-                        controller: _searchController,
+                        controller:
+                            _searchController,
                         onChanged: (value) {
                           setState(() {
                             searchText = value;
                           });
                         },
-
                         textInputAction:
                             TextInputAction.search,
-
-                        decoration: InputDecoration(
+                        decoration:
+                            InputDecoration(
                           hintText:
                               'ابحث عن كتاب أو مجلة أو مؤلف...',
                           prefixIcon: const Icon(
@@ -206,7 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onPressed: () {
                                         _searchController
                                             .clear();
-
                                         setState(() {
                                           searchText = '';
                                         });
@@ -216,9 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     )
                                   : null,
-
                           border: InputBorder.none,
-
                           contentPadding:
                               const EdgeInsets.symmetric(
                             vertical: 17,
@@ -228,67 +224,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 24),
 
-                    // الأكثر قراءة وتحميلاً
-                    if (searchText.isEmpty)
+                    // نتائج البحث
+                    if (searchText.isNotEmpty) ...[
                       _sectionHeader(
-                        title: '🔥 الأكثر قراءة وتحميلًا',
-                        onTap: () {},
+                        title: 'نتائج البحث',
                       ),
-
-                    if (searchText.isEmpty)
                       const SizedBox(height: 12),
+                    ],
 
-                    if (searchText.isEmpty &&
-                        widget.books.isNotEmpty)
-                      SizedBox(
-                        height: 235,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount:
-                              widget.books.length > 6
-                                  ? 6
-                                  : widget.books.length,
-
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 14),
-
-                          itemBuilder: (context, index) {
-                            return _FeaturedBookCard(
-                              book: widget.books[index],
-                              onTap: () => openBook(
-                                widget.books[index],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                    if (searchText.isEmpty)
-                      const SizedBox(height: 26),
-
-                    // الأقسام
-                    if (searchText.isEmpty)
+                    // الأقسام الرئيسية
+                    if (searchText.isEmpty) ...[
                       _sectionHeader(
                         title: '📚 تصفح حسب القسم',
-                        onTap: () {},
                       ),
 
-                    if (searchText.isEmpty)
                       const SizedBox(height: 12),
 
-                    if (searchText.isEmpty)
                       SizedBox(
-                        height: 45,
+                        height: 46,
                         child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: categories.length,
-
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 8),
-
-                          itemBuilder: (context, index) {
+                          scrollDirection:
+                              Axis.horizontal,
+                          itemCount:
+                              categories.length,
+                          separatorBuilder:
+                              (_, __) =>
+                                  const SizedBox(
+                            width: 8,
+                          ),
+                          itemBuilder:
+                              (context, index) {
                             final category =
                                 categories[index];
 
@@ -297,22 +264,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                     category;
 
                             return ChoiceChip(
-                              label: Text(category),
-
+                              label:
+                                  Text(category),
                               selected: selected,
-
                               onSelected: (_) {
                                 setState(() {
                                   selectedCategory =
                                       category;
                                 });
                               },
-
                               selectedColor:
                                   orange.withValues(
                                 alpha: 0.18,
                               ),
-
                               side: BorderSide(
                                 color: selected
                                     ? orange
@@ -321,12 +285,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       alpha: 0.25,
                                     ),
                               ),
-
-                              labelStyle: TextStyle(
-                                fontWeight:
-                                    selected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
+                              labelStyle:
+                                  TextStyle(
+                                fontWeight: selected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                                 color: selected
                                     ? orange
                                     : null,
@@ -336,29 +299,108 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    // عنوان المحتوى
-                    _sectionHeader(
-                      title: searchText.isNotEmpty
-                          ? 'نتائج البحث'
-                          : selectedCategory == 'الكل'
-                              ? '🆕 أحدث المحتوى'
-                              : selectedCategory,
-                      onTap: () {},
-                    ),
+                      // الكتب
+                      _sectionHeader(
+                        title: '📚 الكتب',
+                      ),
 
-                    const SizedBox(height: 14),
+                      const SizedBox(height: 12),
+
+                      if (booksOnly.isEmpty)
+                        _SmallEmptyState(
+                          text:
+                              'لا توجد كتب مضافة حاليًا.',
+                        )
+                      else
+                        SizedBox(
+                          height: 265,
+                          child: ListView.separated(
+                            scrollDirection:
+                                Axis.horizontal,
+                            itemCount:
+                                booksOnly.length,
+                            separatorBuilder:
+                                (_, __) =>
+                                    const SizedBox(
+                              width: 14,
+                            ),
+                            itemBuilder:
+                                (context, index) {
+                              final book =
+                                  booksOnly[index];
+
+                              return _BookHorizontalCard(
+                                book: book,
+                                onTap: () =>
+                                    openBook(book),
+                              );
+                            },
+                          ),
+                        ),
+
+                      const SizedBox(height: 30),
+
+                      // المجلات القديمة
+                      _sectionHeader(
+                        title: '📰 المجلات القديمة',
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      if (magazinesOnly.isEmpty)
+                        _SmallEmptyState(
+                          text:
+                              'لا توجد مجلات مضافة حاليًا.',
+                        )
+                      else
+                        SizedBox(
+                          height: 330,
+                          child: ListView.separated(
+                            scrollDirection:
+                                Axis.horizontal,
+                            itemCount:
+                                magazinesOnly.length,
+                            separatorBuilder:
+                                (_, __) =>
+                                    const SizedBox(
+                              width: 14,
+                            ),
+                            itemBuilder:
+                                (context, index) {
+                              final magazine =
+                                  magazinesOnly[index];
+
+                              return _MagazineCard(
+                                book: magazine,
+                                onTap: () =>
+                                    openBook(magazine),
+                              );
+                            },
+                          ),
+                        ),
+
+                      const SizedBox(height: 30),
+
+                      _sectionHeader(
+                        title: '🆕 أحدث المحتوى',
+                      ),
+
+                      const SizedBox(height: 14),
+                    ],
+
+                    if (searchText.isNotEmpty)
+                      const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
 
-            // شبكة الكتب
-            if (books.isEmpty)
+            // نتائج البحث / أحدث المحتوى
+            if (results.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-
                 child: _EmptyState(
                   hasSearch:
                       searchText.trim().isNotEmpty,
@@ -372,21 +414,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   20,
                   28,
                 ),
-
                 sliver: SliverGrid(
-                  delegate: SliverChildBuilderDelegate(
+                  delegate:
+                      SliverChildBuilderDelegate(
                     (context, index) {
-                      final book = books[index];
+                      final book = results[index];
 
                       return _BookCard(
                         book: book,
                         onTap: () => openBook(book),
                       );
                     },
-
-                    childCount: books.length,
+                    childCount: results.length,
                   ),
-
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -404,106 +444,147 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _sectionHeader({
     required String title,
-    required VoidCallback onTap,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-
-        TextButton(
-          onPressed: onTap,
-          child: const Text(
-            'عرض الكل',
-            style: TextStyle(
-              color: orange,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 21,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 }
 
 // ------------------------------------------------------------
-// بطاقة المحتوى الرئيسية
+// بطاقة الكتب الأفقية
 // ------------------------------------------------------------
 
-class _BookCard extends StatelessWidget {
+class _BookHorizontalCard extends StatelessWidget {
   final Book book;
   final VoidCallback onTap;
 
-  const _BookCard({
+  const _BookHorizontalCard({
+    required this.book,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
+
+    return SizedBox(
+      width: 155,
+      child: _CardContainer(
+        isDark: isDark,
+        onTap: onTap,
+        child: Column(
+          children: [
+            Expanded(
+              child: _Cover(
+                url: book.coverUrl,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              book.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              book.author,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark
+                    ? Colors.white60
+                    : Colors.black54,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// بطاقة المجلة مع التعريف المختصر
+// ------------------------------------------------------------
+
+class _MagazineCard extends StatelessWidget {
+  final Book book;
+  final VoidCallback onTap;
+
+  const _MagazineCard({
     required this.book,
     required this.onTap,
   });
 
   static const orange = Color(0xFFF28C28);
 
+  String get magazineDescription {
+    if (book.title.contains('العربي الصغير')) {
+      return 'مجلة العربي الصغير هي نافذة ثقافية ساحرة وأيقونة أدب الأطفال في العالم العربي. تصدر شهرياً عن وزارة الإعلام الكويتية منذ عام 1986 (بعد أن كانت الملحق الخاص بمجلة "العربي" العريقة)، لتأخذ القراء الصغار في رحلة ممتعة تجمع بين العلوم، والفنون، والقصص المصورة.';
+    }
+
+    if (book.description != null &&
+        book.description!.trim().isNotEmpty) {
+      return book.description!;
+    }
+
+    return 'مجلة قديمة من مجموعة KITARA.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark =
-        Theme.of(context).brightness == Brightness.dark;
+        Theme.of(context).brightness ==
+            Brightness.dark;
 
-    return Material(
-      color: Colors.transparent,
-
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF1E1E1E)
-                : Colors.white,
-
-            borderRadius: BorderRadius.circular(20),
-
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: isDark ? 0.15 : 0.07,
+    return SizedBox(
+      width: 245,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius:
+              BorderRadius.circular(20),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF1E1E1E)
+                  : Colors.white,
+              borderRadius:
+                  BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: isDark ? 0.15 : 0.07,
+                  ),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-
-          child: Padding(
-            padding: const EdgeInsets.all(9),
-
+              ],
+            ),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.stretch,
-
               children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(14),
-
-                    child: book.coverUrl != null &&
-                            book.coverUrl!.isNotEmpty
-                        ? Image.network(
-                            book.coverUrl!,
-                            fit: BoxFit.cover,
-
-                            errorBuilder:
-                                (_, __, ___) {
-                              return _CoverPlaceholder();
-                            },
-                          )
-                        : _CoverPlaceholder(),
+                SizedBox(
+                  height: 165,
+                  child: _Cover(
+                    url: book.coverUrl,
                   ),
                 ),
 
@@ -512,147 +593,51 @@ class _BookCard extends StatelessWidget {
                 Text(
                   book.title,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
 
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
 
                 Text(
-                  book.author,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  magazineDescription,
+                  maxLines: 3,
+                  overflow:
+                      TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
+                    height: 1.35,
                     color: isDark
-                        ? Colors.white60
+                        ? Colors.white70
                         : Colors.black54,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
-// ------------------------------------------------------------
-// البطاقة البارزة
-// ------------------------------------------------------------
+                const SizedBox(height: 6),
 
-class _FeaturedBookCard extends StatelessWidget {
-  final Book book;
-  final VoidCallback onTap;
-
-  const _FeaturedBookCard({
-    required this.book,
-    required this.onTap,
-  });
-
-  static const orange = Color(0xFFF28C28);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark =
-        Theme.of(context).brightness == Brightness.dark;
-
-    return SizedBox(
-      width: 150,
-
-      child: Material(
-        color: Colors.transparent,
-
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-
-          child: Container(
-            padding: const EdgeInsets.all(8),
-
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1E1E1E)
-                  : Colors.white,
-
-              borderRadius:
-                  BorderRadius.circular(20),
-
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: 0.08,
-                  ),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-
-            child: Column(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(15),
-
-                    child: book.coverUrl != null &&
-                            book.coverUrl!.isNotEmpty
-                        ? Image.network(
-                            book.coverUrl!,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (_, __, ___) =>
-                                    _CoverPlaceholder(),
-                          )
-                        : _CoverPlaceholder(),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  book.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-
-                const SizedBox(height: 3),
-
-                Row(
+                const Row(
                   mainAxisAlignment:
                       MainAxisAlignment.center,
-
-                  children: const [
+                  children: [
                     Icon(
-                      Icons.local_fire_department_rounded,
+                      Icons.menu_book_rounded,
                       size: 15,
                       color: orange,
                     ),
-
-                    SizedBox(width: 3),
-
+                    SizedBox(width: 4),
                     Text(
-                      'شائع',
+                      'مجلة',
                       style: TextStyle(
-                        fontSize: 11,
                         color: orange,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.bold,
                       ),
                     ),
                   ],
@@ -667,15 +652,145 @@ class _FeaturedBookCard extends StatelessWidget {
 }
 
 // ------------------------------------------------------------
-// صورة غلاف بديلة
+// البطاقة الرئيسية
 // ------------------------------------------------------------
 
-class _CoverPlaceholder extends StatelessWidget {
+class _BookCard extends StatelessWidget {
+  final Book book;
+  final VoidCallback onTap;
+
+  const _BookCard({
+    required this.book,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
+
+    return _CardContainer(
+      isDark: isDark,
+      onTap: onTap,
+      child: Column(
+        children: [
+          Expanded(
+            child: _Cover(
+              url: book.coverUrl,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            book.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            book.author,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark
+                  ? Colors.white60
+                  : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+
+class _CardContainer extends StatelessWidget {
+  final bool isDark;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _CardContainer({
+    required this.isDark,
+    required this.onTap,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E1E1E)
+                : Colors.white,
+            borderRadius:
+                BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: isDark ? 0.15 : 0.07,
+                ),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+
+class _Cover extends StatelessWidget {
+  final String? url;
+
+  const _Cover({
+    required this.url,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (url == null || url!.isEmpty) {
+      return _CoverPlaceholder();
+    }
+
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(14),
+      child: Image.network(
+        url!,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (_, __, ___) =>
+                _CoverPlaceholder(),
+      ),
+    );
+  }
+}
+
+class _CoverPlaceholder
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFFF3F3F3),
-
       child: const Center(
         child: Icon(
           Icons.menu_book_rounded,
@@ -688,10 +803,43 @@ class _CoverPlaceholder extends StatelessWidget {
 }
 
 // ------------------------------------------------------------
-// حالة عدم وجود نتائج
+
+class _SmallEmptyState
+    extends StatelessWidget {
+  final String text;
+
+  const _SmallEmptyState({
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 75,
+      width: double.infinity,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(16),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.35),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+}
+
 // ------------------------------------------------------------
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState
+    extends StatelessWidget {
   final bool hasSearch;
 
   const _EmptyState({
@@ -703,47 +851,35 @@ class _EmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
-
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
-
           children: [
             Icon(
               hasSearch
                   ? Icons.search_off_rounded
                   : Icons.menu_book_rounded,
-
               size: 70,
-
-              color: const Color(
-                0xFFF28C28,
-              ),
+              color:
+                  const Color(0xFFF28C28),
             ),
-
             const SizedBox(height: 18),
-
             Text(
               hasSearch
                   ? 'لم نجد ما تبحث عنه'
-                  : 'لا توجد كتب حاليًا',
-
+                  : 'لا يوجد محتوى حاليًا',
               textAlign: TextAlign.center,
-
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               hasSearch
                   ? 'جرّب البحث بعنوان أو مؤلف مختلف.'
                   : 'سيظهر المحتوى هنا عند إضافته.',
               textAlign: TextAlign.center,
-
               style: const TextStyle(
                 fontSize: 15,
                 color: Colors.grey,
