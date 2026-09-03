@@ -28,6 +28,15 @@ flutter:
   assets:
     - assets/kitara_intro.wav
     - assets/kitara_icon.png
+    - assets/fonts/amiri-regular.ttf
+    - assets/fonts/amiri-bold.ttf
+
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/amiri-regular.ttf
+        - asset: assets/fonts/amiri-bold.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: true
