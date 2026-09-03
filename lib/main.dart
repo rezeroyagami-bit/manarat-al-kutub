@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/supabase_config.dart';
 import 'screens/app_shell.dart';
@@ -14,11 +15,16 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
+  // تهيئة Google Mobile Ads
+  await MobileAds.instance.initialize();
+
   final prefs = await SharedPreferences.getInstance();
   final savedDarkMode = prefs.getBool('dark_mode') ?? false;
 
   runApp(
-    KitaraApp(initialDarkMode: savedDarkMode),
+    KitaraApp(
+      initialDarkMode: savedDarkMode,
+    ),
   );
 }
 
@@ -49,7 +55,9 @@ class _KitaraAppState extends State<KitaraApp> {
   }
 
   Future<void> _playIntro() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(
+      const Duration(milliseconds: 400),
+    );
 
     try {
       await _audioPlayer.play(
@@ -65,7 +73,8 @@ class _KitaraAppState extends State<KitaraApp> {
       isDarkMode = !isDarkMode;
     });
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
     await prefs.setBool(
       'dark_mode',
@@ -111,21 +120,27 @@ class _KitaraAppState extends State<KitaraApp> {
           centerTitle: false,
         ),
 
-        navigationBarTheme: NavigationBarThemeData(
+        navigationBarTheme:
+            NavigationBarThemeData(
           backgroundColor: Colors.white,
 
-          indicatorColor: Color(0x2EF28C28),
+          indicatorColor:
+              Color(0x2EF28C28),
 
-          labelTextStyle: WidgetStateProperty.all(
+          labelTextStyle:
+              WidgetStateProperty.all(
             const TextStyle(
               fontFamily: 'Amiri',
               fontWeight: FontWeight.w600,
             ),
           ),
 
-          iconTheme: WidgetStateProperty.resolveWith(
+          iconTheme:
+              WidgetStateProperty.resolveWith(
             (states) {
-              if (states.contains(WidgetState.selected)) {
+              if (states.contains(
+                WidgetState.selected,
+              )) {
                 return const IconThemeData(
                   color: orange,
                 );
@@ -138,19 +153,27 @@ class _KitaraAppState extends State<KitaraApp> {
           ),
         ),
 
-        elevatedButtonTheme: ElevatedButtonThemeData(
+        elevatedButtonTheme:
+            ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: orange,
             foregroundColor: Colors.white,
             elevation: 2,
-            padding: const EdgeInsets.symmetric(
+
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 24,
               vertical: 14,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
             ),
-            textStyle: const TextStyle(
+
+            textStyle:
+                const TextStyle(
               fontFamily: 'Amiri',
               fontSize: 17,
               fontWeight: FontWeight.bold,
@@ -169,30 +192,39 @@ class _KitaraAppState extends State<KitaraApp> {
           brightness: Brightness.dark,
         ),
 
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor:
+            const Color(0xFF121212),
 
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF121212),
+          backgroundColor:
+              Color(0xFF121212),
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
         ),
 
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF1E1E1E),
+        navigationBarTheme:
+            NavigationBarThemeData(
+          backgroundColor:
+              const Color(0xFF1E1E1E),
 
-          indicatorColor: Color(0x40F28C28),
+          indicatorColor:
+              Color(0x40F28C28),
 
-          labelTextStyle: WidgetStateProperty.all(
+          labelTextStyle:
+              WidgetStateProperty.all(
             const TextStyle(
               fontFamily: 'Amiri',
               fontWeight: FontWeight.w600,
             ),
           ),
 
-          iconTheme: WidgetStateProperty.resolveWith(
+          iconTheme:
+              WidgetStateProperty.resolveWith(
             (states) {
-              if (states.contains(WidgetState.selected)) {
+              if (states.contains(
+                WidgetState.selected,
+              )) {
                 return const IconThemeData(
                   color: orange,
                 );
@@ -205,19 +237,27 @@ class _KitaraAppState extends State<KitaraApp> {
           ),
         ),
 
-        elevatedButtonTheme: ElevatedButtonThemeData(
+        elevatedButtonTheme:
+            ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: orange,
             foregroundColor: Colors.white,
             elevation: 2,
-            padding: const EdgeInsets.symmetric(
+
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 24,
               vertical: 14,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
             ),
-            textStyle: const TextStyle(
+
+            textStyle:
+                const TextStyle(
               fontFamily: 'Amiri',
               fontSize: 17,
               fontWeight: FontWeight.bold,
@@ -237,10 +277,12 @@ class WelcomeScreen extends StatefulWidget {
   });
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  State<WelcomeScreen> createState() =>
+      _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState
+    extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
@@ -250,16 +292,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       () {
         if (!mounted) return;
 
-        final appState =
-            context.findAncestorStateOfType<_KitaraAppState>();
+        final appState = context
+            .findAncestorStateOfType<
+                _KitaraAppState>();
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => AppShell(
               onThemeToggle:
-                  appState?.toggleTheme ?? () {},
+                  appState?.toggleTheme ??
+                      () {},
               isDarkMode:
-                  appState?.isDarkMode ?? false,
+                  appState?.isDarkMode ??
+                      false,
             ),
           ),
         );
@@ -277,7 +322,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 24,
             ),
 
@@ -288,10 +334,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 Image.asset(
                   'assets/kitara_icon.png',
-
                   width: 120,
                   height: 120,
-
                   fit: BoxFit.contain,
                 ),
 
@@ -299,11 +343,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
                 const Text(
                   'KITARA',
-
                   style: TextStyle(
                     fontFamily: 'Amiri',
                     fontSize: 38,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                        FontWeight.bold,
                     color: orange,
                     letterSpacing: 2,
                   ),
@@ -313,11 +357,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
                 const Text(
                   'كِتارا',
-
                   style: TextStyle(
                     fontFamily: 'Amiri',
                     fontSize: 28,
-                    fontWeight: FontWeight.w700,
+                    fontWeight:
+                        FontWeight.w700,
                   ),
                 ),
 
@@ -325,13 +369,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
                 const Text(
                   'رحلة الكتاب تبدأ بصفحة',
-
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
                     fontFamily: 'Amiri',
                     fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
@@ -340,9 +383,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
                 const Text(
                   'اقرأ • استكشف • استمتع',
-
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
                     fontFamily: 'Amiri',
                     fontSize: 16,
