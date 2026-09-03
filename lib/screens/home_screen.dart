@@ -7,6 +7,7 @@ import 'details_screen.dart';
 import 'about_screen.dart';
 import 'magazine_screen.dart';
 import 'support_screen.dart';
+import 'favorites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Book> books;
@@ -88,13 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> openMagazine(Book book) async {
     String magazineName = book.title.trim();
 
-    // إزالة رقم العدد من اسم المجلة
     if (magazineName.contains(' — العدد')) {
       magazineName =
           magazineName.split(' — العدد').first.trim();
     }
 
-    // إزالة كلمة "مجلة" حتى تطابق الاسم الموجود في Supabase
     if (magazineName.startsWith('مجلة ')) {
       magazineName =
           magazineName.substring(5).trim();
@@ -164,6 +163,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void openFavorites() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FavoritesScreen(
+          books: widget.books,
+        ),
+      ),
+    );
+  }
+
   Future<void> refreshContent() async {
     await Future.delayed(
       const Duration(milliseconds: 400),
@@ -200,6 +210,16 @@ class _HomeScreenState extends State<HomeScreen> {
               color: orange,
             ),
           ),
+
+          IconButton(
+            tooltip: 'المفضلة',
+            onPressed: openFavorites,
+            icon: const Icon(
+              Icons.favorite_border_rounded,
+              color: orange,
+            ),
+          ),
+
           IconButton(
             tooltip: 'حول كِتارا',
             onPressed: openAbout,
@@ -208,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: orange,
             ),
           ),
+
           IconButton(
             tooltip:
                 isDark ? 'الوضع النهاري' : 'الوضع الليلي',
@@ -219,6 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: orange,
             ),
           ),
+
           const SizedBox(width: 8),
         ],
       ),
@@ -269,7 +291,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 18),
 
-                    // البحث
                     Container(
                       decoration: BoxDecoration(
                         color: isDark
@@ -328,7 +349,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 24),
 
-                    // نتائج البحث
                     if (searchText.isNotEmpty) ...[
                       _sectionHeader(
                         title: 'نتائج البحث',
@@ -336,7 +356,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                     ],
 
-                    // الأقسام
                     if (searchText.isEmpty) ...[
                       _sectionHeader(
                         title: 'تصفح حسب القسم',
@@ -403,7 +422,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 28),
 
-                      // الكتب
                       _sectionHeader(
                         title: 'الكتب',
                       ),
@@ -444,7 +462,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 30),
 
-                      // المجلات القديمة
                       _sectionHeader(
                         title: 'المجلات القديمة',
                       ),
@@ -485,7 +502,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 30),
 
-                      // أحدث المحتوى
                       _sectionHeader(
                         title: 'أحدث المحتوى',
                       ),
@@ -500,7 +516,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // نتائج البحث / أحدث المحتوى
             if (results.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -692,7 +707,6 @@ class _BookHorizontalCard extends StatelessWidget {
                       url: book.coverUrl,
                     ),
                   ),
-
                   Positioned(
                     top: 7,
                     right: 7,
@@ -775,28 +789,21 @@ class _MagazineCard extends StatelessWidget {
 
     return SizedBox(
       width: 210,
-
       child: Material(
         color: Colors.transparent,
-
         child: InkWell(
           borderRadius:
               BorderRadius.circular(20),
-
           onTap: onTap,
-
           child: Container(
             padding:
                 const EdgeInsets.all(10),
-
             decoration: BoxDecoration(
               color: isDark
                   ? const Color(0xFF1E1E1E)
                   : Colors.white,
-
               borderRadius:
                   BorderRadius.circular(20),
-
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(
@@ -809,7 +816,6 @@ class _MagazineCard extends StatelessWidget {
                 ),
               ],
             ),
-
             child: Column(
               children: [
                 Expanded(
@@ -820,7 +826,6 @@ class _MagazineCard extends StatelessWidget {
                           url: book.coverUrl,
                         ),
                       ),
-
                       Positioned(
                         top: 7,
                         right: 7,
@@ -841,7 +846,6 @@ class _MagazineCard extends StatelessWidget {
                       TextOverflow.ellipsis,
                   textAlign:
                       TextAlign.center,
-
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight:
@@ -903,7 +907,6 @@ class _BookCard extends StatelessWidget {
     return _CardContainer(
       isDark: isDark,
       onTap: onTap,
-
       child: Column(
         children: [
           Expanded(
@@ -914,7 +917,6 @@ class _BookCard extends StatelessWidget {
                     url: book.coverUrl,
                   ),
                 ),
-
                 Positioned(
                   top: 7,
                   right: 7,
@@ -935,7 +937,6 @@ class _BookCard extends StatelessWidget {
                 TextOverflow.ellipsis,
             textAlign:
                 TextAlign.center,
-
             style: const TextStyle(
               fontSize: 15,
               fontWeight:
@@ -952,7 +953,6 @@ class _BookCard extends StatelessWidget {
                 TextOverflow.ellipsis,
             textAlign:
                 TextAlign.center,
-
             style: TextStyle(
               fontSize: 12,
               color: isDark
@@ -983,25 +983,19 @@ class _CardContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-
       child: InkWell(
         borderRadius:
             BorderRadius.circular(20),
-
         onTap: onTap,
-
         child: Container(
           padding:
               const EdgeInsets.all(9),
-
           decoration: BoxDecoration(
             color: isDark
                 ? const Color(0xFF1E1E1E)
                 : Colors.white,
-
             borderRadius:
                 BorderRadius.circular(20),
-
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
@@ -1014,7 +1008,6 @@ class _CardContainer extends StatelessWidget {
               ),
             ],
           ),
-
           child: child,
         ),
       ),
@@ -1041,11 +1034,9 @@ class _Cover extends StatelessWidget {
     return ClipRRect(
       borderRadius:
           BorderRadius.circular(14),
-
       child: Image.network(
         url!,
         fit: BoxFit.cover,
-
         errorBuilder:
             (_, __, ___) =>
                 const _CoverPlaceholder(),
@@ -1065,7 +1056,6 @@ class _CoverPlaceholder
     return Container(
       color:
           const Color(0xFFF3F3F3),
-
       child: const Center(
         child: Icon(
           Icons.menu_book_rounded,
@@ -1093,15 +1083,12 @@ class _SmallEmptyState
     return Container(
       height: 75,
       width: double.infinity,
-
       alignment:
           Alignment.center,
-
       decoration:
           BoxDecoration(
         borderRadius:
             BorderRadius.circular(16),
-
         color: Theme.of(context)
             .colorScheme
             .surfaceContainerHighest
@@ -1109,7 +1096,6 @@ class _SmallEmptyState
               alpha: 0.35,
             ),
       ),
-
       child: Text(
         text,
         style: const TextStyle(
@@ -1136,19 +1122,15 @@ class _EmptyState
       child: Padding(
         padding:
             const EdgeInsets.all(30),
-
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
-
           children: [
             Icon(
               hasSearch
                   ? Icons.search_off_rounded
                   : Icons.menu_book_rounded,
-
               size: 70,
-
               color:
                   const Color(0xFFF28C28),
             ),
@@ -1159,10 +1141,8 @@ class _EmptyState
               hasSearch
                   ? 'لم نجد ما تبحث عنه'
                   : 'لا يوجد محتوى حاليًا',
-
               textAlign:
                   TextAlign.center,
-
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight:
@@ -1176,10 +1156,8 @@ class _EmptyState
               hasSearch
                   ? 'جرّب البحث بعنوان أو مؤلف مختلف.'
                   : 'سيظهر المحتوى هنا عند إضافته.',
-
               textAlign:
                   TextAlign.center,
-
               style: const TextStyle(
                 fontSize: 15,
                 color: Colors.grey,
