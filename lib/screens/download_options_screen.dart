@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -42,6 +41,8 @@ class _DownloadOptionsScreenState
   @override
   void initState() {
     super.initState();
+
+    // الإعلان موجود في الكود وسنعيده بعد اختبار التحميل.
     _loadRewardedAd();
   }
 
@@ -245,7 +246,8 @@ class _DownloadOptionsScreenState
         final dot = decoded.lastIndexOf('.');
 
         if (dot > 0 && dot < decoded.length - 1) {
-          final extension = decoded.substring(dot + 1);
+          final extension =
+              decoded.substring(dot + 1);
 
           if (extension.length <= 5) {
             return extension.toLowerCase();
@@ -399,10 +401,13 @@ class _DownloadOptionsScreenState
     }
   }
 
+  // اختبار مؤقت:
+  // يبدأ التحميل مباشرة بدون انتظار الإعلان.
+  // سنعيد الإعلان بعد التأكد من أن التحميل يعمل.
   void _startFreeDownload() {
     if (_isDownloading) return;
 
-    _showRewardedAd();
+    _startDownload();
   }
 
   @override
@@ -455,11 +460,11 @@ class _DownloadOptionsScreenState
                   Icons.download_rounded,
                 ),
                 label: const Text(
-                  'تحميل — شاهد إعلانًا',
+                  'بدء التحميل',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor:
-                      const Color(0xFFF28C28),
+                      orange,
                   foregroundColor:
                       Colors.white,
                   minimumSize:
@@ -528,17 +533,6 @@ class _DownloadOptionsScreenState
             ],
 
             const SizedBox(height: 20),
-
-            if (_isLoadingAd &&
-                !_isDownloading &&
-                !_downloadCompleted)
-              const Text(
-                'جاري تجهيز الإعلان...',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                ),
-              ),
           ],
         ),
       ),
