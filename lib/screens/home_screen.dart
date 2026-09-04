@@ -646,19 +646,20 @@ class _NewsTickerState
 
   @override
   Widget build(BuildContext context) {
-    final text = widget.newsItems.join('     •     ');
+    final text =
+        widget.newsItems.join('     •     ');
 
     return Container(
       height: 35,
       width: double.infinity,
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: const Color(0xFF159447),
+        color: const Color(0xFFB71C1C),
         borderRadius:
             BorderRadius.circular(7),
       ),
       child: Directionality(
-        textDirection: TextDirection.ltr,
+        textDirection: TextDirection.rtl,
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -673,7 +674,7 @@ class _NewsTickerState
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  textDirection: TextDirection.ltr,
+                  textDirection: TextDirection.rtl,
                 )..layout();
 
                 final textWidth =
@@ -693,7 +694,7 @@ class _NewsTickerState
                   children: [
                     Positioned(
                       left:
-                          availableWidth - offset,
+                          -textWidth + offset,
                       top: 0,
                       child: SizedBox(
                         width: textWidth,
@@ -705,6 +706,8 @@ class _NewsTickerState
                             softWrap: false,
                             overflow:
                                 TextOverflow.visible,
+                            textDirection:
+                                TextDirection.rtl,
                             style:
                                 const TextStyle(
                               color: Colors.white,
