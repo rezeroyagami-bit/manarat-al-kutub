@@ -23,11 +23,71 @@ jobs:
       - name: Create Android project
         run: flutter create . --platforms=android
 
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          set -e
+
+          echo "Android SDK: $ANDROID_SDK_ROOT"
+
+          SDKMANAGER="$(command -v sdkmanager || true)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            if [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+              SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            elif [ -x "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then
+              SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager"
+            else
+              echo "ERROR: sdkmanager not found"
+              exit 1
+            fi
+          fi
+
+          echo "Using sdkmanager: $SDKMANAGER"
+
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+
+          NDK_VERSION="27.0.12077973"
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
+
+          echo "Installing NDK $NDK_VERSION"
+
+          for attempt in 1 2 3; do
+            echo "NDK installation attempt: $attempt"
+
+            rm -rf "$NDK_PATH"
+
+            if "$SDKMANAGER" --install "ndk;$NDK_VERSION"; then
+              if [ -f "$NDK_PATH/source.properties" ]; then
+                echo "NDK $NDK_VERSION installed successfully."
+                break
+              fi
+            fi
+
+            echo "NDK installation failed. Retrying..."
+            rm -rf "$NDK_PATH"
+            sleep 10
+
+            if [ "$attempt" = "3" ]; then
+              echo "ERROR: Failed to install NDK $NDK_VERSION"
+              exit 1
+            fi
+          done
+
+          echo "Installed NDK contents:"
+          ls -la "$NDK_PATH"
+
       - name: Download Amiri font
         run: |
           mkdir -p assets/fonts
-          curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
-          curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
+
+          curl -L \
+            "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" \
+            -o assets/fonts/amiri-regular.ttf
+
+          curl -L \
+            "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" \
+            -o assets/fonts/amiri-bold.ttf
 
       - name: Configure Android app
         run: |
