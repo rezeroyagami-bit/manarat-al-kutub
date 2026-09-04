@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:public_file_saver/public_file_saver.dart';
 
 import '../models/book.dart';
 
@@ -35,14 +36,13 @@ class _DownloadOptionsScreenState
       'ca-app-pub-6792981270949925/4708033165';
 
   final Dio _dio = Dio();
+  final PublicFileSaver _fileSaver = PublicFileSaver();
 
   bool _earnedReward = false;
 
   @override
   void initState() {
     super.initState();
-
-    // الإعلان موجود في الكود وسنعيده بعد اختبار التحميل.
     _loadRewardedAd();
   }
 
@@ -176,7 +176,7 @@ class _DownloadOptionsScreenState
 
       final patterns = <RegExp>[
         RegExp(
-          r'href=["''](https?://download[^"'']+)["'']',
+          r'''href=["'](https?://download[^"']+)["']''',
           caseSensitive: false,
         ),
         RegExp(
@@ -188,7 +188,7 @@ class _DownloadOptionsScreenState
           caseSensitive: false,
         ),
         RegExp(
-          r'data-download-url=["'']([^"'']+)["'']',
+          r'''data-download-url=["']([^"']+)["']''',
           caseSensitive: false,
         ),
       ];
@@ -259,21 +259,30 @@ class _DownloadOptionsScreenState
     return '';
   }
 
-  Future<Directory> _getDownloadDirectory() async {
-    final baseDirectory =
-        await getApplicationDocumentsDirectory();
+  String _getMimeType(String fileName) {
+    final lowerName = fileName.toLowerCase();
 
-    final downloadDirectory = Directory(
-      '${baseDirectory.path}/downloads',
-    );
-
-    if (!await downloadDirectory.exists()) {
-      await downloadDirectory.create(
-        recursive: true,
-      );
+    if (lowerName.endsWith('.pdf')) {
+      return 'application/pdf';
     }
 
-    return downloadDirectory;
+    if (lowerName.endsWith('.cbr')) {
+      return 'application/vnd.comicbook-rar';
+    }
+
+    if (lowerName.endsWith('.cbz')) {
+      return 'application/vnd.comicbook+zip';
+    }
+
+    if (lowerName.endsWith('.zip')) {
+      return 'application/zip';
+    }
+
+    if (lowerName.endsWith('.epub')) {
+      return 'application/epub+zip';
+    }
+
+    return 'application/octet-stream';
   }
 
   Future<void> _startDownload() async {
@@ -288,7 +297,11 @@ class _DownloadOptionsScreenState
       });
     }
 
+    File? temporaryFile;
+
     try {
+      // الحصول على رابط MediaFire المباشر داخليًا.
+      // لن يتم عرضه للمستخدم.
       final directUrl =
           await _getDirectMediaFireUrl(
         widget.book.downloadUrl,
@@ -300,13 +313,15 @@ class _DownloadOptionsScreenState
         );
       }
 
-      final directory =
-          await _getDownloadDirectory();
+      final temporaryDirectory =
+          await getTemporaryDirectory();
 
       final fileName = _createFileName();
 
-      final filePath =
-          '${directory.path}/$fileName';
+      final temporaryPath =
+          '${temporaryDirectory.path}/$fileName';
+
+      temporaryFile = File(temporaryPath);
 
       if (mounted) {
         setState(() {
@@ -314,9 +329,10 @@ class _DownloadOptionsScreenState
         });
       }
 
+      // تنزيل الملف أولًا إلى مساحة مؤقتة.
       await _dio.download(
         directUrl,
-        filePath,
+        temporaryPath,
         deleteOnError: true,
         onReceiveProgress:
             (received, total) {
@@ -352,13 +368,38 @@ class _DownloadOptionsScreenState
         ),
       );
 
-      final file = File(filePath);
-
-      if (!await file.exists()) {
+      if (!await temporaryFile.exists()) {
         throw Exception(
-          'DOWNLOAD_FILE_NOT_FOUND',
+          'TEMP_FILE_NOT_FOUND',
         );
       }
+
+      if (mounted) {
+        setState(() {
+          _status =
+              'جاري حفظ الملف في التنزيلات...';
+        });
+      }
+
+      // حفظ الملف في Downloads العامة.
+      final savedFile =
+          await _fileSaver.saveFile(
+        file: temporaryFile,
+        fileName: fileName,
+        mimeType: _getMimeType(fileName),
+      );
+
+      if (savedFile == null ||
+          !savedFile.isSuccess) {
+        throw Exception(
+          'PUBLIC_SAVE_FAILED',
+        );
+      }
+
+      // حذف النسخة المؤقتة بعد نجاح الحفظ.
+      try {
+        await temporaryFile.delete();
+      } catch (_) {}
 
       if (mounted) {
         setState(() {
@@ -372,7 +413,7 @@ class _DownloadOptionsScreenState
             .showSnackBar(
           const SnackBar(
             content: Text(
-              'اكتمل تحميل الملف بنجاح.',
+              'تم تحميل الملف وحفظه في مجلد التنزيلات.',
             ),
           ),
         );
@@ -380,6 +421,15 @@ class _DownloadOptionsScreenState
 
       _loadRewardedAd();
     } catch (e) {
+      // حذف الملف المؤقت إذا فشل شيء.
+      if (temporaryFile != null) {
+        try {
+          if (await temporaryFile.exists()) {
+            await temporaryFile.delete();
+          }
+        } catch (_) {}
+      }
+
       if (!mounted) return;
 
       setState(() {
@@ -392,7 +442,7 @@ class _DownloadOptionsScreenState
           .showSnackBar(
         const SnackBar(
           content: Text(
-            'تعذر بدء التحميل من المصدر حاليًا.',
+            'تعذر تحميل الملف حاليًا. حاول مرة أخرى.',
           ),
         ),
       );
@@ -401,9 +451,9 @@ class _DownloadOptionsScreenState
     }
   }
 
-  // اختبار مؤقت:
+  // الاختبار الحالي:
   // يبدأ التحميل مباشرة بدون انتظار الإعلان.
-  // سنعيد الإعلان بعد التأكد من أن التحميل يعمل.
+  // سنعيد تفعيل الإعلان بعد نجاح الاختبار.
   void _startFreeDownload() {
     if (_isDownloading) return;
 
@@ -523,7 +573,7 @@ class _DownloadOptionsScreenState
                 const SizedBox(height: 10),
 
                 const Text(
-                  'تم حفظ الملف في تنزيلات كِتارا',
+                  'تم حفظ الملف في مجلد التنزيلات',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
