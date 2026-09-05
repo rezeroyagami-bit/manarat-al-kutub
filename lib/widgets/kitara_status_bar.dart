@@ -67,43 +67,33 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
 
   Future<void> _activate() async {
     if (_activating) return;
-    final controller = TextEditingController();
-    final code = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('المحتوى الحصري'),
-        content: const Text('للوصول إلى الكتب المدفوعة والمحتوى الحصري، أدخل كود التشغيل.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, 'open'),
-            child: const Text('إدخال الكود'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || code != 'open') {
-      controller.dispose();
-      return;
-    }
 
+    final controller = TextEditingController();
     final enteredCode = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('كود التشغيل'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'كود التشغيل',
-            border: OutlineInputBorder(),
-          ),
+        title: const Text('المحتوى الحصري'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'للوصول إلى المحتوى الحصري والمدفوع أدخل الكود.',
+              textAlign: TextAlign.right,
+              textDirection: TextDirection.rtl,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'كود التشغيل',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -118,19 +108,22 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
       ),
     );
     controller.dispose();
-    if (!mounted || enteredCode == null || enteredCode.isEmpty) return;
+
+    if (!mounted || enteredCode == null || enteredCode.trim().isEmpty) return;
 
     setState(() => _activating = true);
     try {
-      final valid = await SupabaseService().validateKitaraActivationCode(enteredCode);
+      final valid = await SupabaseService().validateKitaraActivationCode(enteredCode.trim());
       if (!mounted) return;
+
       if (!valid) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('كود التشغيل غير صحيح.')),
         );
         return;
       }
-      await widget.onActivated(enteredCode);
+
+      await widget.onActivated(enteredCode.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تفعيل المحتوى الحصري.')),
@@ -150,44 +143,53 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
     const green = Color(0xFF2E7D32);
     const orange = Color(0xFFF28C28);
     final accent = widget.exclusiveUnlocked ? orange : green;
+
     return Material(
       color: Colors.transparent,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
             onTap: _showCoinsInfo,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.94),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: accent.withValues(alpha: 0.45)),
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: accent.withValues(alpha: 0.38)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.monetization_on_rounded, size: 20, color: accent),
+                  Icon(Icons.monetization_on_rounded, size: 19, color: accent),
                   const SizedBox(width: 5),
                   Text('$_coins', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 8),
           InkWell(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(8),
             onTap: widget.exclusiveUnlocked ? null : _activate,
             child: Container(
-              width: 42,
-              height: 42,
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 11),
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-                border: Border.all(color: accent.withValues(alpha: 0.55)),
+                color: accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: accent.withValues(alpha: 0.48)),
               ),
-              child: Icon(Icons.workspace_premium_rounded, color: accent, size: 23),
+              child: Text(
+                widget.exclusiveUnlocked ? 'المحتوى الحصري' : 'النسخة المجانية',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
