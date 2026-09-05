@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:public_file_saver/public_file_saver.dart';
 
@@ -19,183 +18,51 @@ class DownloadOptionsScreen extends StatefulWidget {
 }
 
 class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
-  RewardedAd? _rewardedAd;
-  bool _isLoadingAd = false;
-  bool _isDownloading = false;
-  bool _downloadCompleted = false;
-  double _progress = 0.0;
-  String _status = '';
-
-  static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
-  static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
-
   final Dio _dio = Dio();
   final PublicFileSaver _fileSaver = PublicFileSaver();
   final DownloadsService _downloadsService = DownloadsService();
-  bool _earnedReward = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _prepareRewardedAd();
-  }
-
-  Future<void> _prepareRewardedAd() async {
-    try {
-      await MobileAds.instance.initialize();
-    } catch (e) {
-      debugPrint('AdMob initialization error: $e');
-    }
-    if (!mounted) return;
-    _loadRewardedAd();
-  }
-
-  void _loadRewardedAd() {
-    if (_isLoadingAd || _rewardedAd != null) return;
-    _isLoadingAd = true;
-    if (mounted) setState(() {});
-
-    RewardedAd.load(
-      adUnitId: _rewardedAdUnitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          _rewardedAd = ad;
-          _isLoadingAd = false;
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose();
-              _rewardedAd = null;
-              if (_earnedReward) {
-                _earnedReward = false;
-                _startDownload();
-              } else {
-                _loadRewardedAd();
-              }
-            },
-            onAdFailedToShowFullScreenContent: (ad, error) {
-              ad.dispose();
-              _rewardedAd = null;
-              _earnedReward = false;
-              _loadRewardedAd();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تعذر تشغيل الإعلان التجريبي. حاول مرة أخرى.')),
-                );
-              }
-            },
-          );
-          if (mounted) setState(() {});
-        },
-        onAdFailedToLoad: (error) {
-          _rewardedAd = null;
-          _isLoadingAd = false;
-          debugPrint('REWARDED AD LOAD ERROR: ${error.code} ${error.message}');
-          if (mounted) setState(() {});
-        },
-      ),
-    );
-  }
-
-  Future<void> _showRewardedAd() async {
-    if (_isDownloading) return;
-
-    if (_rewardedAd == null) {
-      if (mounted) setState(() => _status = 'جاري تجهيز الإعلان التجريبي...');
-      _loadRewardedAd();
-
-      for (var i = 0; i < 20; i++) {
-        if (_rewardedAd != null || !mounted) break;
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-
-      if (!mounted) return;
-      if (_rewardedAd == null) {
-        setState(() => _status = '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            duration: Duration(seconds: 5),
-            content: Text('الإعلان التجريبي لم يجهز بعد. تحقق من الإنترنت وحاول مرة أخرى.'),
-          ),
-        );
-        _loadRewardedAd();
-        return;
-      }
-      setState(() => _status = '');
-    }
-
-    final ad = _rewardedAd;
-    if (ad == null) return;
-
-    _rewardedAd = null;
-    _earnedReward = false;
-    ad.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-      _earnedReward = true;
-    });
-  }
+  bool _downloading = false;
+  String _status = '';
 
   String _sanitizeFileName(String value) {
-    final cleaned = value.replaceAll(RegExp(r'''[\\/:*?"<>|]'''), '_').trim();
-    return cleaned.isEmpty ? 'kitara_file' : cleaned;
+    final cleaned = value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    return cleaned.isEmpty ? 'kitara_download' : cleaned;
   }
 
   String? _fileNameFromContentDisposition(String? value) {
-    if (value == null || value.isEmpty) return null;
-    final utf = RegExp(r"filename\*=UTF-8''([^;]+)", caseSensitive: false).firstMatch(value);
-    if (utf != null) {
+    if (value == null || value.trim().isEmpty) return null;
+
+    final encoded = RegExp(r"filename\\*=UTF-8''([^;]+)", caseSensitive: false).firstMatch(value)?.group(1);
+    if (encoded != null && encoded.isNotEmpty) {
       try {
-        final decoded = Uri.decodeComponent(utf.group(1)!.replaceAll('"', '').trim());
+        final decoded = Uri.decodeComponent(encoded).trim().replaceAll('"', '');
         if (decoded.isNotEmpty) return _sanitizeFileName(decoded);
       } catch (_) {}
     }
-    final normal = RegExp(r'filename\s*=\s*"([^"]+)"', caseSensitive: false).firstMatch(value) ??
-        RegExp(r'filename\s*=\s*([^;]+)', caseSensitive: false).firstMatch(value);
-    if (normal != null) {
-      final name = normal.group(1)!.trim().replaceAll('"', '');
-      if (name.isNotEmpty) return _sanitizeFileName(name);
-    }
+
+    final quoted = RegExp(r'filename\\s*=\\s*"([^"]+)"', caseSensitive: false).firstMatch(value)?.group(1);
+    if (quoted != null && quoted.isNotEmpty) return _sanitizeFileName(quoted.trim());
+
+    final plain = RegExp(r'filename\\s*=\\s*([^;]+)', caseSensitive: false).firstMatch(value)?.group(1);
+    if (plain != null && plain.isNotEmpty) return _sanitizeFileName(plain.trim().replaceAll('"', ''));
+
     return null;
   }
 
-  String _extensionFromContentType(String contentType, List<int> header) {
-    final type = contentType.toLowerCase();
-    if (type.contains('pdf') || _startsWith(header, [0x25, 0x50, 0x44, 0x46])) return '.pdf';
-    if (type.contains('epub')) return '.epub';
-    if (type.contains('zip') || _startsWith(header, [0x50, 0x4B, 0x03, 0x04])) return '.zip';
-    if (type.contains('rar') || _startsWith(header, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07])) return '.rar';
-    return '';
-  }
-
-  String _fallbackFileName(String contentType, List<int> header) {
-    final title = _sanitizeFileName(widget.book.title);
-    final extension = _extensionFromContentType(contentType, header);
-    return title.toLowerCase().endsWith(extension) || extension.isEmpty ? title : '$title$extension';
-  }
-
-  String _getMimeType(String fileName) {
-    final lower = fileName.toLowerCase();
-    if (lower.endsWith('.pdf')) return 'application/pdf';
-    if (lower.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
-    if (lower.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
-    if (lower.endsWith('.zip')) return 'application/zip';
-    if (lower.endsWith('.epub')) return 'application/epub+zip';
-    if (lower.endsWith('.rar')) return 'application/vnd.rar';
-    return 'application/octet-stream';
-  }
-
   Future<List<int>> _readHeader(File file) async {
-    final bytes = <int>[];
-    await for (final chunk in file.openRead(0, 16)) {
-      bytes.addAll(chunk);
-      if (bytes.length >= 16) break;
+    final raf = await file.open();
+    try {
+      return await raf.read(16);
+    } finally {
+      await raf.close();
     }
-    return bytes;
   }
 
-  bool _startsWith(List<int> bytes, List<int> signature) {
-    if (bytes.length < signature.length) return false;
+  bool _startsWith(List<int> data, List<int> signature) {
+    if (data.length < signature.length) return false;
     for (var i = 0; i < signature.length; i++) {
-      if (bytes[i] != signature[i]) return false;
+      if (data[i] != signature[i]) return false;
     }
     return true;
   }
@@ -203,55 +70,59 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   bool _isValidBookFile(String contentType, List<int> header) {
     final type = contentType.toLowerCase();
     if (type.contains('text/html') || type.contains('application/json') || type.startsWith('text/')) return false;
-    return _startsWith(header, [0x25, 0x50, 0x44, 0x46]) ||
-        _startsWith(header, [0x50, 0x4B, 0x03, 0x04]) ||
-        _startsWith(header, [0x50, 0x4B, 0x05, 0x06]) ||
-        _startsWith(header, [0x50, 0x4B, 0x07, 0x08]) ||
-        _startsWith(header, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]);
+    if (_startsWith(header, [0x25, 0x50, 0x44, 0x46])) return true;
+    if (_startsWith(header, [0x50, 0x4b, 0x03, 0x04])) return true;
+    if (_startsWith(header, [0x52, 0x61, 0x72, 0x21])) return true;
+    return type.contains('pdf') || type.contains('zip') || type.contains('rar') || type.contains('epub') || type.contains('comicbook');
   }
 
-  String _friendlyProxyError(Response<dynamic>? response) {
-    final data = response?.data;
-    if (data is Map<String, dynamic>) {
-      final message = data['error'];
-      if (message is String && message.isNotEmpty) return message;
-    }
-    return 'تعذر الحصول على الملف الحقيقي من الخادم. حاول مرة أخرى.';
+  String _extensionFromContentType(String contentType, List<int> header) {
+    final type = contentType.toLowerCase();
+    if (type.contains('pdf') || _startsWith(header, [0x25, 0x50, 0x44, 0x46])) return '.pdf';
+    if (type.contains('epub')) return '.epub';
+    if (type.contains('zip') || _startsWith(header, [0x50, 0x4b, 0x03, 0x04])) return '.zip';
+    if (type.contains('rar') || type.contains('comicbook') || _startsWith(header, [0x52, 0x61, 0x72, 0x21])) return '.rar';
+    return '';
+  }
+
+  String _fallbackFileName(String contentType, List<int> header) {
+    final extension = _extensionFromContentType(contentType, header);
+    return '${_sanitizeFileName(widget.book.title)}$extension';
+  }
+
+  String _getMimeType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
+    if (lower.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
+    if (lower.endsWith('.epub')) return 'application/epub+zip';
+    if (lower.endsWith('.zip')) return 'application/zip';
+    if (lower.endsWith('.rar')) return 'application/vnd.rar';
+    return 'application/octet-stream';
+  }
+
+  String _friendlyProxyError(Response response) {
+    final status = response.statusCode;
+    if (status != null && status >= 400) return 'تعذر تحميل الملف (خطأ $status).';
+    return 'الملف الذي وصل ليس ملف كتاب صالحًا.';
   }
 
   Future<void> _startDownload() async {
-    if (_isDownloading) return;
-    if (mounted) {
-      setState(() {
-        _isDownloading = true;
-        _downloadCompleted = false;
-        _progress = 0.0;
-        _status = 'جاري تجهيز التحميل...';
-      });
-    }
+    if (_downloading) return;
+    setState(() {
+      _downloading = true;
+      _status = 'جاري التحضير للتحميل...';
+    });
 
     File? temporaryFile;
     try {
-      final proxyUrl = '$_proxyBaseUrl/download/${Uri.encodeComponent(widget.book.id)}';
       final temporaryDirectory = await getTemporaryDirectory();
-      final temporaryPath = '${temporaryDirectory.path}/kitara_download.tmp';
-      temporaryFile = File(temporaryPath);
+      temporaryFile = File('${temporaryDirectory.path}/kitara_download.tmp');
       if (await temporaryFile.exists()) await temporaryFile.delete();
 
-      if (mounted) setState(() => _status = 'جاري تنزيل الملف الحقيقي...');
-
       final response = await _dio.download(
-        proxyUrl,
-        temporaryPath,
-        deleteOnError: true,
-        onReceiveProgress: (received, total) {
-          if (!mounted) return;
-          final value = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
-          setState(() {
-            _progress = value;
-            _status = total > 0 ? 'جاري التحميل... ${(value * 100).toInt()}%' : 'جاري التحميل...';
-          });
-        },
+        widget.book.downloadUrl,
+        temporaryFile.path,
         options: Options(
           responseType: ResponseType.bytes,
           followRedirects: true,
@@ -265,17 +136,15 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
 
       if (!await temporaryFile.exists()) throw Exception('TEMP_FILE_NOT_FOUND');
       final fileLength = await temporaryFile.length();
-      final contentType = response.headers.value(Headers.contentTypeHeader) ?? '';
+      final contentType = response.headers.value('content-type') ?? '';
+      final contentDisposition = response.headers.value('content-disposition');
       final header = await _readHeader(temporaryFile);
 
       if (fileLength < 1024 || !_isValidBookFile(contentType, header)) {
         throw Exception(_friendlyProxyError(response));
       }
 
-      final fileName = _fileNameFromContentDisposition(
-            response.headers.value(Headers.contentDispositionHeader),
-          ) ??
-          _fallbackFileName(contentType, header);
+      final fileName = _fileNameFromContentDisposition(contentDisposition) ?? _fallbackFileName(contentType, header);
       final finalPath = '${temporaryDirectory.path}/$fileName';
       if (finalPath != temporaryFile.path) {
         final renamed = await temporaryFile.rename(finalPath);
@@ -289,7 +158,10 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
         fileName: fileName,
         mimeType: _getMimeType(fileName),
       );
-      if (savedFile == null || !savedFile.isSuccess) throw Exception('PUBLIC_SAVE_FAILED');
+
+      if (savedFile == null || !savedFile.isSuccess) {
+        throw Exception('SAVE_FAILED');
+      }
 
       await _downloadsService.copyToAppDownloads(
         source: temporaryFile,
@@ -297,147 +169,50 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
         fileName: fileName,
       );
 
-      try {
-        await temporaryFile.delete();
-      } catch (_) {}
-
-      if (mounted) {
-        setState(() {
-          _progress = 1.0;
-          _isDownloading = false;
-          _downloadCompleted = true;
-          _status = 'اكتمل التحميل';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تحميل الملف الحقيقي وإضافته إلى «تنزيلاتي» في KITARA.')),
-        );
-      }
-      _loadRewardedAd();
-    } on DioException catch (e) {
-      await _cleanupTemporaryFile(temporaryFile);
       if (!mounted) return;
-      final status = e.response?.statusCode;
-      final message = status != null && e.response?.data != null
-          ? _friendlyProxyError(e.response)
-          : 'تعذر الاتصال بخادم التحميل. تحقق من الإنترنت وحاول مرة أخرى.';
-      setState(() {
-        _isDownloading = false;
-        _progress = 0.0;
-        _status = '';
-      });
+      setState(() => _status = 'تم تحميل الملف بنجاح.');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(duration: const Duration(seconds: 8), content: Text('خطأ التحميل:\n$message')),
+        const SnackBar(content: Text('تم حفظ الملف في التنزيلات وداخل KITARA.')),
       );
-      _loadRewardedAd();
-    } catch (e, stackTrace) {
-      debugPrint('DOWNLOAD ERROR: $e');
-      debugPrint('DOWNLOAD STACK TRACE:\n$stackTrace');
-      await _cleanupTemporaryFile(temporaryFile);
-      if (!mounted) return;
-      setState(() {
-        _isDownloading = false;
-        _progress = 0.0;
-        _status = '';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(duration: const Duration(seconds: 10), content: Text('خطأ التحميل:\n${e.toString().replaceFirst('Exception: ', '')}')),
-      );
-      _loadRewardedAd();
-    }
-  }
-
-  Future<void> _cleanupTemporaryFile(File? file) async {
-    if (file == null) return;
-    try {
-      if (await file.exists()) await file.delete();
     } catch (e) {
-      debugPrint('CLEANUP ERROR: $e');
+      if (!mounted) return;
+      setState(() => _status = 'فشل التحميل.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر تحميل الملف: $e')),
+      );
+    } finally {
+      if (temporaryFile != null) {
+        try {
+          if (await temporaryFile.exists()) await temporaryFile.delete();
+        } catch (_) {}
+      }
+      if (mounted) setState(() => _downloading = false);
     }
-  }
-
-  void _startFreeDownload() {
-    if (!_isDownloading) _showRewardedAd();
-  }
-
-  @override
-  void dispose() {
-    _rewardedAd?.dispose();
-    _dio.close();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
     return Scaffold(
-      appBar: AppBar(title: const Text('التحميل')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 30),
-            const Icon(Icons.download_rounded, size: 80, color: orange),
-            const SizedBox(height: 20),
-            Text(
-              widget.book.title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 35),
-            if (!_isDownloading && !_downloadCompleted)
+      appBar: AppBar(title: const Text('تحميل الكتاب')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(widget.book.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _startFreeDownload,
-                icon: _isLoadingAd
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.download_rounded),
-                label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: orange,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(55),
-                ),
+                onPressed: _downloading ? null : _startDownload,
+                icon: const Icon(Icons.download),
+                label: Text(_downloading ? 'جاري التحميل...' : 'تحميل'),
               ),
-            if (_isDownloading || _downloadCompleted) ...[
-              const SizedBox(height: 10),
-              Text(
-                _status,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _downloadCompleted ? Colors.green : null,
-                ),
-              ),
-              const SizedBox(height: 20),
-              LinearProgressIndicator(
-                value: _progress,
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${(_progress * 100).toInt()}%',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-              if (_downloadCompleted) ...[
-                const SizedBox(height: 20),
-                const Icon(Icons.check_circle, size: 55, color: Colors.green),
-                const SizedBox(height: 10),
-                const Text(
-                  'تمت إضافة الملف إلى «تنزيلاتي»',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
-                ),
+              if (_status.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(_status, textAlign: TextAlign.center),
               ],
             ],
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );
