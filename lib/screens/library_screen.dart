@@ -15,66 +15,136 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  static const orange = Color(0xFFF28C28);
+  final SupabaseService _service = SupabaseService();
+  List<Map<String, dynamic>> _sections = [];
+  bool _loadingSections = true;
   String? _selectedSection;
   String? _selectedSchoolLevel;
 
-  List<Book> get _sectionBooks {
-    final section = _selectedSection;
-    if (section == null) return const [];
-    if (section == 'المجلات') return widget.books.where((book) => book.isMagazine).toList();
-    if (section == 'الكتب') return widget.books.where((book) => !book.isMagazine).toList();
-    if (section == 'الكتب المدرسية') {
-      final level = _selectedSchoolLevel;
-      if (level == null) return const [];
-      return widget.books.where((book) {
-        if (book.isMagazine) return false;
-        final text = '${book.category} ${book.title}'.toLowerCase();
-        return text.contains(level.toLowerCase());
-      }).toList();
-    }
-    return const [];
+  static const _fallbackSections = <Map<String, dynamic>>[
+    {
+      'section_key': 'books',
+      'title': 'الكتب',
+      'subtitle': 'جميع الكتب المتوفرة في كِتارا',
+      'icon_name': 'menu_book_rounded',
+    },
+    {
+      'section_key': 'magazines',
+      'title': 'المجلات',
+      'subtitle': 'استكشف المجلات والأعداد المتوفرة',
+      'icon_name': 'auto_stories_rounded',
+    },
+    {
+      'section_key': 'school',
+      'title': 'الكتب المدرسية',
+      'subtitle': 'الابتدائي • المتوسط • الثانوي',
+      'icon_name': 'school_rounded',
+    },
+    {
+      'section_key': 'university',
+      'title': 'الجامعي',
+      'subtitle': 'سيتم إضافة المحتوى لاحقًا',
+      'icon_name': 'account_balance_rounded',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSections();
   }
 
-  void _selectSection(String section) {
-    if (section == 'الجامعي') {
+  Future<void> _loadSections() async {
+    try {
+      final sections = await _service.getLibrarySections();
+      if (!mounted) return;
+      setState(() {
+        _sections = sections.isEmpty ? _fallbackSections : sections;
+        _loadingSections = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _sections = _fallbackSections;
+        _loadingSections = false;
+      });
+    }
+  }
+
+  List<Book> _booksForKey(String key) {
+    switch (key) {
+      case 'magazines':
+        return widget.books.where((book) => book.isMagazine).toList();
+      case 'books':
+        return widget.books.where((book) => !book.isMagazine).toList();
+      default:
+        return const [];
+    }
+  }
+
+  List<Book> get _schoolBooks {
+    final level = _selectedSchoolLevel;
+    if (level == null) return const [];
+    return widget.books.where((book) {
+      if (book.isMagazine) return false;
+      final text = '${book.category} ${book.title}'.toLowerCase();
+      return text.contains(level.toLowerCase());
+    }).toList();
+  }
+
+  void _selectSection(String key) {
+    if (key == 'university') {
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('الجامعي'),
-          content: const Text('سيتم إضافة المحتوى لاحقا'),
+          content: const Text('سيتم إضافة المحتوى لاحقًا'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسنًا')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسنًا'),
+            ),
           ],
         ),
       );
       return;
     }
     setState(() {
-      _selectedSection = section;
+      _selectedSection = key;
       _selectedSchoolLevel = null;
     });
   }
 
-  void _selectSchoolLevel(String level) => setState(() => _selectedSchoolLevel = level);
+  void _selectSchoolLevel(String level) {
+    setState(() => _selectedSchoolLevel = level);
+  }
 
   void _openBook(Book book) {
     if (book.isMagazine) {
       _openMagazine(book);
       return;
     }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => DetailsScreen(book: book)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DetailsScreen(book: book)),
+    );
   }
 
   Future<void> _openMagazine(Book book) async {
     String magazineName = book.title.trim();
-    if (magazineName.contains(' — العدد')) magazineName = magazineName.split(' — العدد').first.trim();
-    if (magazineName.startsWith('مجلة ')) magazineName = magazineName.substring(5).trim();
+    if (magazineName.contains(' — العدد')) {
+      magazineName = magazineName.split(' — العدد').first.trim();
+    }
+    if (magazineName.startsWith('مجلة ')) {
+      magazineName = magazineName.substring(5).trim();
+    }
     try {
-      final magazine = await SupabaseService().getMagazineByName(magazineName);
+      final magazine = await _service.getMagazineByName(magazineName);
       if (!mounted) return;
       if (magazine == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر العثور على بيانات المجلة.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر العثور على بيانات المجلة.')),
+        );
         return;
       }
       Navigator.push(
@@ -90,7 +160,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح المجلة. تحقق من اتصال الإنترنت.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح المجلة. تحقق من اتصال الإنترنت.')),
+      );
     }
   }
 
@@ -111,11 +183,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
               )
             : null,
       ),
-      body: _selectedSection == null ? _buildSections(isDark) : _buildSectionContent(isDark),
+      body: _selectedSection == null
+          ? _buildSections(isDark)
+          : _buildSectionContent(isDark),
     );
   }
 
   Widget _buildSections(bool isDark) {
+    if (_loadingSections) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
       children: [
@@ -123,16 +201,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
         const SizedBox(height: 8),
         Text('اختر القسم الذي تريد تصفحه', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
         const SizedBox(height: 22),
-        _SectionCard(icon: Icons.menu_book_rounded, title: 'الكتب', subtitle: 'جميع الكتب المتوفرة في كِتارا', onTap: () => _selectSection('الكتب')),
-        _SectionCard(icon: Icons.auto_stories_rounded, title: 'المجلات', subtitle: 'استكشف المجلات والأعداد المتوفرة', onTap: () => _selectSection('المجلات')),
-        _SectionCard(icon: Icons.school_rounded, title: 'الكتب المدرسية', subtitle: 'الابتدائي • المتوسط • الثانوي', onTap: () => _selectSection('الكتب المدرسية')),
-        _SectionCard(icon: Icons.account_balance_rounded, title: 'الجامعي', subtitle: 'سيتم إضافة المحتوى لاحقا', onTap: () => _selectSection('الجامعي')),
+        ..._sections.map(
+          (section) => _SectionCard(
+            icon: _iconFromName(section['icon_name'] as String?),
+            title: (section['title'] as String?)?.trim().isNotEmpty == true
+                ? section['title'] as String
+                : 'قسم',
+            subtitle: (section['subtitle'] as String?) ?? '',
+            onTap: () => _selectSection(section['section_key'] as String),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildSectionContent(bool isDark) {
-    if (_selectedSection == 'الكتب المدرسية' && _selectedSchoolLevel == null) {
+    if (_selectedSection == 'school' && _selectedSchoolLevel == null) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
         children: [
@@ -145,7 +229,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
 
-    if (_selectedSection == 'الكتب المدرسية' && _selectedSchoolLevel == 'الابتدائي') {
+    if (_selectedSection == 'school' && _selectedSchoolLevel == 'الابتدائي') {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
         children: [
@@ -160,7 +244,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
 
-    final books = _sectionBooks;
+    final books = _selectedSection == 'school' ? _schoolBooks : _booksForKey(_selectedSection!);
     if (books.isEmpty) {
       return Center(
         child: Padding(
@@ -168,7 +252,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(_selectedSection == 'المجلات' ? Icons.auto_stories_outlined : Icons.menu_book_outlined, size: 70, color: Colors.grey),
+              Icon(_selectedSection == 'magazines' ? Icons.auto_stories_outlined : Icons.menu_book_outlined, size: 70, color: Colors.grey),
               const SizedBox(height: 16),
               Text('لا توجد محتويات مضافة حاليًا', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87), textAlign: TextAlign.center),
             ],
@@ -182,6 +266,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       itemCount: books.length,
       itemBuilder: (context, index) {
         final book = books[index];
+        final accent = Theme.of(context).colorScheme.primary;
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
@@ -196,9 +281,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: book.coverUrl != null && book.coverUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(book.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded)),
+                            child: Image.network(
+                              book.coverUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(Icons.menu_book_rounded, color: accent),
+                            ),
                           )
-                        : const Icon(Icons.menu_book_rounded, size: 40, color: orange),
+                        : Icon(Icons.menu_book_rounded, size: 40, color: accent),
                   ),
                   if (book.isExclusive)
                     const Positioned(
@@ -208,7 +297,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                         child: Padding(
                           padding: EdgeInsets.all(3),
-                          child: Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 22),
+                          child: Icon(Icons.workspace_premium_rounded, color: Color(0xFFF28C28), size: 22),
                         ),
                       ),
                     ),
@@ -223,6 +312,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
       },
     );
   }
+
+  IconData _iconFromName(String? name) {
+    switch (name) {
+      case 'auto_stories_rounded':
+        return Icons.auto_stories_rounded;
+      case 'school_rounded':
+        return Icons.school_rounded;
+      case 'account_balance_rounded':
+        return Icons.account_balance_rounded;
+      case 'menu_book_rounded':
+      default:
+        return Icons.menu_book_rounded;
+    }
+  }
 }
 
 class _SectionCard extends StatelessWidget {
@@ -230,11 +333,12 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+
   const _SectionCard({required this.icon, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    final accent = Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       clipBehavior: Clip.antiAlias,
@@ -244,10 +348,27 @@ class _SectionCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Container(width: 58, height: 58, decoration: BoxDecoration(color: orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: orange, size: 30)),
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: accent, size: 30),
+              ),
               const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(subtitle, style: const TextStyle(color: Colors.grey))])),
-              const Icon(Icons.chevron_left_rounded, color: orange),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left_rounded, color: accent),
             ],
           ),
         ),
@@ -260,18 +381,22 @@ class _LevelCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+
   const _LevelCard({required this.icon, required this.title, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    final accent = Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         minVerticalPadding: 14,
-        leading: CircleAvatar(backgroundColor: orange.withValues(alpha: 0.12), child: Icon(icon, color: orange)),
+        leading: CircleAvatar(
+          backgroundColor: accent.withValues(alpha: 0.12),
+          child: Icon(icon, color: accent),
+        ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-        trailing: const Icon(Icons.chevron_left_rounded),
+        trailing: Icon(Icons.chevron_left_rounded, color: accent),
         onTap: onTap,
       ),
     );
