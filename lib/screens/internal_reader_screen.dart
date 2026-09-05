@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:docx_viewer/docx_viewer.dart';
 import 'package:flutter/material.dart';
@@ -149,12 +150,13 @@ class _CbrReaderState extends State<_CbrReader> {
     return a.compareTo(b);
   }
 
-  Future<List<int>> _readPage(String path) async {
+  Future<Uint8List> _readPage(String path) async {
     final archive = _archive;
     if (archive == null) throw Exception('تعذر فتح المجلة.');
     final entry = archive.entry(path);
     if (entry == null) throw Exception('تعذر قراءة الصفحة.');
-    return archive.readBytes(entry, maxSize: 50 << 20);
+    final bytes = await archive.readBytes(entry, maxSize: 50 << 20);
+    return Uint8List.fromList(bytes);
   }
 
   @override
@@ -189,7 +191,7 @@ class _CbrReaderState extends State<_CbrReader> {
         controller: _pageController,
         itemCount: _pages.length,
         onPageChanged: (index) => setState(() => _currentPage = index),
-        itemBuilder: (context, index) => FutureBuilder<List<int>>(
+        itemBuilder: (context, index) => FutureBuilder<Uint8List>(
           future: _readPage(_pages[index]),
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
