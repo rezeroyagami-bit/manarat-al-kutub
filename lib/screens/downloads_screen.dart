@@ -45,6 +45,22 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 
   Future<void> _delete(DownloadedBook download) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف التنزيل'),
+        content: Text(
+          'هل تريد حذف «${download.title}» من تنزيلاتك؟',
+          textAlign: TextAlign.right,
+          textDirection: TextDirection.rtl,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await _service.deleteDownload(download);
   }
 
@@ -65,19 +81,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final file = File(download.filePath);
     if (!await file.exists()) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الملف لم يعد موجودًا على الجهاز.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الملف لم يعد موجودًا على الجهاز.')));
       await _loadDownloads();
       return;
     }
-
     final result = await OpenFilex.open(file.path, type: _mimeType(file.path));
     if (!mounted || result.type.name == 'done') return;
-
-    final message = result.type.name == 'noAppToOpen'
-        ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.'
-        : 'تعذر فتح الملف: ${result.message}';
+    final message = result.type.name == 'noAppToOpen' ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.' : 'تعذر فتح الملف: ${result.message}';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
@@ -92,15 +102,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: orange))
           : _downloads.isEmpty
-              ? const Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.download_for_offline_outlined, size: 72, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text('لا توجد تنزيلات حتى الآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                    SizedBox(height: 8),
-                    Text('ستظهر الكتب والمجلات التي تنزلها هنا', style: TextStyle(color: Colors.grey)),
-                  ]),
-                )
+              ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.download_for_offline_outlined, size: 72, color: Colors.grey), SizedBox(height: 16), Text('لا توجد تنزيلات حتى الآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)), SizedBox(height: 8), Text('ستظهر الكتب والمجلات التي تنزلها هنا', style: TextStyle(color: Colors.grey))]))
               : RefreshIndicator(
                   onRefresh: _loadDownloads,
                   child: ListView.separated(
@@ -117,10 +119,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                             width: 55,
                             height: 72,
                             child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(item.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded, size: 38)),
-                                  )
+                                ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded, size: 38)))
                                 : const Icon(Icons.menu_book_rounded, size: 40, color: orange),
                           ),
                           title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -129,11 +128,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.open_in_new_rounded),
-                              IconButton(
-                                tooltip: 'حذف',
-                                icon: const Icon(Icons.delete_outline_rounded),
-                                onPressed: () => _delete(item),
-                              ),
+                              IconButton(tooltip: 'حذف', icon: const Icon(Icons.delete_outline_rounded), onPressed: () => _delete(item)),
                             ],
                           ),
                         ),
