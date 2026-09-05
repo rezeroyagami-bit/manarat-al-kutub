@@ -5,7 +5,7 @@ import '../services/supabase_service.dart';
 
 class KitaraStatusBar extends StatefulWidget {
   final bool exclusiveUnlocked;
-  final VoidCallback onActivated;
+  final Future<void> Function(String code) onActivated;
 
   const KitaraStatusBar({
     super.key,
@@ -85,7 +85,10 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
         ],
       ),
     );
-    if (!mounted || code != 'open') return;
+    if (!mounted || code != 'open') {
+      controller.dispose();
+      return;
+    }
 
     final enteredCode = await showDialog<String>(
       context: context,
@@ -127,7 +130,8 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
         );
         return;
       }
-      widget.onActivated();
+      await widget.onActivated(enteredCode);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تفعيل المحتوى الحصري.')),
       );
@@ -143,7 +147,9 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
 
   @override
   Widget build(BuildContext context) {
-    const gold = Color(0xFFC89B3C);
+    const green = Color(0xFF2E7D32);
+    const orange = Color(0xFFF28C28);
+    final accent = widget.exclusiveUnlocked ? orange : green;
     return Material(
       color: Colors.transparent,
       child: Row(
@@ -157,12 +163,12 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.94),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: gold.withValues(alpha: 0.55)),
+                border: Border.all(color: accent.withValues(alpha: 0.45)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.monetization_on_rounded, size: 20, color: gold),
+                  Icon(Icons.monetization_on_rounded, size: 20, color: accent),
                   const SizedBox(width: 5),
                   Text('$_coins', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
@@ -177,11 +183,11 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: widget.exclusiveUnlocked ? gold.withValues(alpha: 0.18) : Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.94),
+                color: accent.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
-                border: Border.all(color: gold.withValues(alpha: 0.65)),
+                border: Border.all(color: accent.withValues(alpha: 0.55)),
               ),
-              child: const Icon(Icons.workspace_premium_rounded, color: gold, size: 23),
+              child: Icon(Icons.workspace_premium_rounded, color: accent, size: 23),
             ),
           ),
         ],
