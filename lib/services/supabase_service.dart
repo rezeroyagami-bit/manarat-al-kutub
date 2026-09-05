@@ -4,8 +4,7 @@ import '../models/book.dart';
 import '../models/magazine_issue.dart';
 
 class SupabaseService {
-  final SupabaseClient _client =
-      Supabase.instance.client;
+  final SupabaseClient _client = Supabase.instance.client;
 
   Future<List<Book>> getBooks() async {
     final response = await _client
@@ -14,32 +13,35 @@ class SupabaseService {
         .order('created_at', ascending: false);
 
     return (response as List)
-        .map(
-          (item) => Book.fromMap(
-            item as Map<String, dynamic>,
-          ),
-        )
+        .map((item) => Book.fromMap(item as Map<String, dynamic>))
         .toList();
   }
 
-  Future<bool> validateBookAccess({
-    required String bookId,
-    required String code,
-  }) async {
+  Future<bool> validateKitaraActivationCode(String code) async {
     final response = await _client.rpc(
-      'validate_book_access',
-      params: {
-        'p_book_id': bookId,
-        'p_code': code,
-      },
+      'validate_kitara_activation_code',
+      params: {'p_code': code},
     );
-
     return response == true;
   }
 
-  Future<List<MagazineIssue>> getMagazineIssues(
-    String magazineId,
-  ) async {
+  Future<int> getCoinBalance(String deviceId) async {
+    final response = await _client.rpc(
+      'get_kitara_coin_balance',
+      params: {'p_device_id': deviceId},
+    );
+    return response is int ? response : int.tryParse(response.toString()) ?? 0;
+  }
+
+  Future<int> awardCoin(String deviceId) async {
+    final response = await _client.rpc(
+      'award_kitara_coin',
+      params: {'p_device_id': deviceId},
+    );
+    return response is int ? response : int.tryParse(response.toString()) ?? 0;
+  }
+
+  Future<List<MagazineIssue>> getMagazineIssues(String magazineId) async {
     final response = await _client
         .from('magazine_issues')
         .select()
@@ -47,23 +49,16 @@ class SupabaseService {
         .order('issue_number', ascending: true);
 
     return (response as List)
-        .map(
-          (item) => MagazineIssue.fromMap(
-            item as Map<String, dynamic>,
-          ),
-        )
+        .map((item) => MagazineIssue.fromMap(item as Map<String, dynamic>))
         .toList();
   }
 
-  Future<Map<String, dynamic>?> getMagazineByName(
-    String name,
-  ) async {
+  Future<Map<String, dynamic>?> getMagazineByName(String name) async {
     final response = await _client
         .from('magazines')
         .select()
         .eq('name', name)
         .maybeSingle();
-
     return response;
   }
 
@@ -74,9 +69,7 @@ class SupabaseService {
         .order('created_at', ascending: false);
 
     return (response as List)
-        .map(
-          (item) => item as Map<String, dynamic>,
-        )
+        .map((item) => item as Map<String, dynamic>)
         .toList();
   }
 
@@ -88,9 +81,7 @@ class SupabaseService {
         .order('sort_order', ascending: true);
 
     return (response as List)
-        .map(
-          (item) => item as Map<String, dynamic>,
-        )
+        .map((item) => item as Map<String, dynamic>)
         .toList();
   }
 }
