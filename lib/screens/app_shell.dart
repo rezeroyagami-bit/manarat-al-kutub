@@ -10,6 +10,7 @@ import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'library_screen.dart';
 import '../widgets/kitara_status_bar.dart';
+import 'maintenance_screen.dart';
 
 class AppShell extends StatefulWidget {
   final VoidCallback onThemeToggle;
@@ -36,7 +37,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   bool adBlockCheckComplete = false;
   bool adBlockDetected = false;
   bool exclusiveUnlocked = false;
+  bool maintenanceMode = false;
+  bool maintenanceAllowDownloads = true;
   bool _checkingActivation = false;
+  bool _checkingMaintenance = false;
+  String maintenanceTitle = 'كِتارا قيد الصيانة';
+  String maintenanceMessage = 'نعمل حاليًا على تحسين كِتارا وتحديث المحتوى. يرجى المحاولة لاحقًا.';
   String? errorMessage;
   int currentIndex = 0;
 
@@ -58,6 +64,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _revalidateActivation();
+      _checkMaintenance();
     }
   }
 
@@ -134,6 +141,30 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     await widget.onExclusiveActivated?.call(code.trim());
   }
 
+  Future<void> _checkMaintenance({bool showLoading = false}) async {
+    if (_checkingMaintenance) return;
+    _checkingMaintenance = true;
+    try {
+      final settings = await _supabaseService.getMaintenanceSettings();
+      final mode = settings['maintenance_mode']?.toLowerCase() == 'true';
+      final allowDownloads = settings['maintenance_allow_downloads']?.toLowerCase() != 'false';
+      final title = settings['maintenance_title']?.trim();
+      final message = settings['maintenance_message']?.trim();
+
+      if (!mounted) return;
+      setState(() {
+        maintenanceMode = mode;
+        maintenanceAllowDownloads = allowDownloads;
+        if (title != null && title.isNotEmpty) maintenanceTitle = title;
+        if (message != null && message.isNotEmpty) maintenanceMessage = message;
+      });
+    } catch (_) {
+      // A temporary network failure must never lock the user out of local downloads.
+    } finally {
+      _checkingMaintenance = false;
+    }
+  }
+
   Future<void> _loadBooksThenCheckAdBlocker() async {
     if (mounted) {
       setState(() {
@@ -145,6 +176,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
 
     try {
+      await _checkMaintenance();
+      if (maintenanceMode) {
+        if (!mounted) return;
+        setState(() {
+          loading = false;
+          adBlockCheckComplete = true;
+        });
+        return;
+      }
+
       final result = await _supabaseService.getBooks();
       if (!mounted) return;
       setState(() {
@@ -161,9 +202,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       });
     } catch (_) {
       if (!mounted) return;
-      // The downloads screen is local and must remain available without internet.
-      // Keep any previously loaded books, skip the online ad-block check, and open
-      // the normal shell so the user can access downloaded files offline.
       setState(() {
         loading = false;
         adBlockCheckComplete = true;
@@ -176,6 +214,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   Future<void> loadBooks() async {
     if (mounted) setState(() { loading = true; errorMessage = null; });
     try {
+      await _checkMaintenance();
+      if (maintenanceMode) {
+        if (!mounted) return;
+        setState(() { loading = false; errorMessage = null; });
+        return;
+      }
       final result = await _supabaseService.getBooks();
       if (!mounted) return;
       setState(() { books = result; loading = false; errorMessage = null; });
@@ -188,9 +232,30 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
   }
 
+  void _openDownloadsFromMaintenance() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!adBlockCheckComplete || loading) return const _LoadingScreen();
+
+    if (maintenanceMode) {
+      if (maintenanceAllowDownloads) {
+        return MaintenanceScreen(
+          title: maintenanceTitle,
+          message: maintenanceMessage,
+          onDownloads: _openDownloadsFromMaintenance,
+        );
+      }
+      return _MaintenanceLockedScreen(
+        title: maintenanceTitle,
+        message: maintenanceMessage,
+      );
+    }
+
     if (adBlockDetected) return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
     if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
 
@@ -296,6 +361,37 @@ class _ErrorScreen extends StatelessWidget {
             const SizedBox(height: 26),
             SizedBox(width: 190, child: ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة'))),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _MaintenanceLockedScreen extends StatelessWidget {
+  final String title;
+  final String message;
+  const _MaintenanceLockedScreen({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    const green = Color(0xFF2E7D32);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.build_circle_outlined, size: 70, color: green),
+                const SizedBox(height: 22),
+                Text(title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 26, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Text(message, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 16, height: 1.7, color: Colors.grey)),
+              ],
+            ),
+          ),
         ),
       ),
     );
