@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import '../services/supabase_service.dart';
 import 'details_screen.dart';
 import 'magazine_screen.dart';
-import '../services/supabase_service.dart';
 
 class LibraryScreen extends StatefulWidget {
   final List<Book> books;
@@ -55,7 +55,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('الجامعي'),
-          content: const Text('سيتم إضافة المحتوى لاحقًا.'),
+          content: const Text('سيتم إضافة المحتوى لاحقا'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -193,7 +193,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _SectionCard(
           icon: Icons.account_balance_rounded,
           title: 'الجامعي',
-          subtitle: 'سيتم إضافة المحتوى لاحقًا',
+          subtitle: 'سيتم إضافة المحتوى لاحقا',
           onTap: () => _selectSection('الجامعي'),
         ),
       ],
@@ -229,7 +229,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
 
-    final title = _selectedSchoolLevel ?? _selectedSection ?? '';
     final books = _sectionBooks;
 
     if (books.isEmpty) {
@@ -332,7 +331,7 @@ class _SectionCard extends StatelessWidget {
                   color: orange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.menu_book_rounded, color: orange, size: 30),
+                child: Icon(icon, color: orange, size: 30),
               ),
               const SizedBox(width: 16),
               Expanded(
