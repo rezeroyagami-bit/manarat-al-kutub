@@ -31,32 +31,47 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _checkAdBlockerAndLoadBooks();
+    _loadBooksThenCheckAdBlocker();
   }
 
-  Future<void> _checkAdBlockerAndLoadBooks() async {
+  Future<void> _loadBooksThenCheckAdBlocker() async {
     if (mounted) {
       setState(() {
         loading = true;
         errorMessage = null;
         adBlockCheckComplete = false;
+        adBlockDetected = false;
       });
     }
 
-    final blocked = await AdBlockDetector.isLikelyBlocked();
-    if (!mounted) return;
+    try {
+      // First verify that KITARA itself can reach Supabase. This prevents
+      // weak/offline internet from being mistaken for an ad blocker.
+      final result = await _supabaseService.getBooks();
+      if (!mounted) return;
 
-    setState(() {
-      adBlockDetected = blocked;
-      adBlockCheckComplete = true;
-    });
+      setState(() {
+        books = result;
+        loading = true;
+      });
 
-    if (blocked) {
-      setState(() => loading = false);
-      return;
+      // Only test AdMob after the app backend has responded successfully.
+      final blocked = await AdBlockDetector.isLikelyBlocked();
+      if (!mounted) return;
+
+      setState(() {
+        adBlockDetected = blocked;
+        adBlockCheckComplete = true;
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        adBlockCheckComplete = true;
+        errorMessage = 'تعذر تحميل المحتوى.\nتحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
+      });
     }
-
-    await loadBooks();
   }
 
   Future<void> loadBooks() async {
@@ -78,9 +93,9 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     if (!adBlockCheckComplete || loading) return const _LoadingScreen();
     if (adBlockDetected) {
-      return AdBlockScreen(onRetry: _checkAdBlockerAndLoadBooks);
+      return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
     }
-    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: loadBooks);
+    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
 
     final screens = <Widget>[
       HomeScreen(books: books, onTheme: widget.onThemeToggle),
