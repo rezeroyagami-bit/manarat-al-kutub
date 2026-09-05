@@ -209,7 +209,9 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       try { await temporaryFile.delete(); } catch (_) {}
       if (mounted) {
         setState(() { _progress = 1.0; _isDownloading = false; _downloadCompleted = true; _status = 'اكتمل التحميل'; });
-        final coinText = newCoinBalance == null ? 'تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.' : 'تم التحميل بنجاح. حصلت على كوين واحد. رصيدك: $newCoinBalance';
+        final coinText = newCoinBalance == null
+            ? 'تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.'
+            : 'تم التحميل بنجاح. حصلت على عملة واحدة. رصيدك: $newCoinBalance';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(coinText)));
       }
       _loadRewardedAd();
@@ -231,12 +233,41 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
-    return Scaffold(appBar: AppBar(title: const Text('التحميل')), body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const SizedBox(height: 30), const Icon(Icons.download_rounded, size: 80, color: orange), const SizedBox(height: 20),
-      Text(widget.book.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 35),
-      if (!_isDownloading && !_downloadCompleted) ElevatedButton.icon(onPressed: _startFreeDownload, icon: _isLoadingAd ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.download_rounded), label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'), style: ElevatedButton.styleFrom(backgroundColor: orange, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(55))),
-      if (_isDownloading || _downloadCompleted) ...[const SizedBox(height: 10), Text(_status, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _downloadCompleted ? Colors.green : null)), const SizedBox(height: 20), LinearProgressIndicator(value: _progress, minHeight: 10, borderRadius: BorderRadius.circular(10)), if (_downloadCompleted) ...[const SizedBox(height: 25), OutlinedButton.icon(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.check_circle_outline), label: const Text('العودة'))]],
-    ])));
+    final accent = Theme.of(context).colorScheme.primary;
+    return Scaffold(
+      appBar: AppBar(title: const Text('التحميل')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 30),
+            Icon(Icons.download_rounded, size: 80, color: accent),
+            const SizedBox(height: 20),
+            Text(widget.book.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 35),
+            if (!_isDownloading && !_downloadCompleted)
+              ElevatedButton.icon(
+                onPressed: _startFreeDownload,
+                icon: _isLoadingAd
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.download_rounded),
+                label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'),
+                style: ElevatedButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(55)),
+              ),
+            if (_isDownloading || _downloadCompleted) ...[
+              const SizedBox(height: 10),
+              Text(_status, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _downloadCompleted ? Colors.green : null)),
+              const SizedBox(height: 20),
+              LinearProgressIndicator(value: _progress, minHeight: 10, borderRadius: BorderRadius.circular(10), color: accent),
+              if (_downloadCompleted) ...[
+                const SizedBox(height: 25),
+                OutlinedButton.icon(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.check_circle_outline), label: const Text('العودة')),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
