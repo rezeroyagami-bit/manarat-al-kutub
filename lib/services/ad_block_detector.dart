@@ -17,25 +17,14 @@ class AdBlockDetector {
       return false;
     }
 
-    var networkFailures = 0;
-    var completedProbes = 0;
+    final results = await Future.wait([
+      _probeRewardedAd(),
+      _probeRewardedAd(),
+    ]);
 
-    for (var i = 0; i < 2; i++) {
-      final result = await _probeRewardedAd();
-      completedProbes++;
-
-      // AdMob's network error is the useful signal here. Other errors such as
-      // no-fill are normal and must not block the user.
-      if (result == _ProbeResult.networkError) {
-        networkFailures++;
-      }
-
-      // Two independent network failures are required before reporting a
-      // possible blocker. This avoids blocking users because of one bad ad.
-      if (networkFailures >= 2) return true;
-    }
-
-    return completedProbes == 2 && networkFailures == 2;
+    // Require two independent AdMob network failures. No-fill and other
+    // normal AdMob errors must never block access to KITARA.
+    return results.every((result) => result == _ProbeResult.networkError);
   }
 
   static Future<_ProbeResult> _probeRewardedAd() async {
@@ -57,6 +46,7 @@ class AdBlockDetector {
           complete(_ProbeResult.loaded);
         },
         onAdFailedToLoad: (error) {
+          // AdMob error code 2 = network error.
           if (error.code == 2) {
             complete(_ProbeResult.networkError);
           } else {
