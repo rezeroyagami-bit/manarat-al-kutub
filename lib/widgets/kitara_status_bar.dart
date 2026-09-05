@@ -47,11 +47,11 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('كوينز'),
+        title: const Text('عملات كِتارا'),
         content: Text(
-          'عند كل تحميل ناجح تربح كوين واحد.\n\n'
-          'استمر في التحميل واجمع الكوينز، وعند الوصول إلى العدد المطلوب للمكافأة ستحصل على مكافأة مميزة.\n\n'
-          'رصيدك الحالي: $_coins كوين',
+          'عند كل تحميل ناجح تربح عملة واحدة.\n\n'
+          'استمر في التحميل واجمع العملات، وعند الوصول إلى العدد المطلوب للمكافأة ستحصل على مكافأة مميزة.\n\n'
+          'رصيدك الحالي: $_coins عملة',
           textAlign: TextAlign.right,
           textDirection: TextDirection.rtl,
         ),
