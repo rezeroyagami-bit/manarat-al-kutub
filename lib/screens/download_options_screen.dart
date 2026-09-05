@@ -23,9 +23,9 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   bool _isLoadingAd = false;
   bool _isDownloading = false;
   bool _downloadCompleted = false;
+  bool _earnedReward = false;
   double _progress = 0.0;
   String _status = '';
-  bool _earnedReward = false;
 
   static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
@@ -176,24 +176,34 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   bool _isRar(List<int> header) =>
       _startsWith(header, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]);
 
+  bool _isOldMicrosoftOffice(List<int> header) =>
+      _startsWith(header, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+
   bool _isValidBookFile(String contentType, List<int> header) {
     final type = contentType.toLowerCase();
     if (type.contains('text/html') || type.contains('application/json') || type.startsWith('text/')) return false;
+
     return _startsWith(header, [0x25, 0x50, 0x44, 0x46]) ||
         _startsWith(header, [0x50, 0x4B, 0x03, 0x04]) ||
         _startsWith(header, [0x50, 0x4B, 0x05, 0x06]) ||
         _startsWith(header, [0x50, 0x4B, 0x07, 0x08]) ||
-        _isRar(header);
+        _isRar(header) ||
+        _isOldMicrosoftOffice(header);
   }
 
   String _extensionFromContentType(String contentType, List<int> header) {
     final type = contentType.toLowerCase();
+
+    if (type.contains('wordprocessingml.document')) return '.docx';
+    if (type.contains('application/msword')) return '.doc';
     if (type.contains('pdf') || _startsWith(header, [0x25, 0x50, 0x44, 0x46])) return '.pdf';
     if (type.contains('epub')) return '.epub';
+    if (type.contains('comicbook+zip')) return '.cbz';
     if (type.contains('zip') || _startsWith(header, [0x50, 0x4B, 0x03, 0x04])) return '.zip';
     if (type.contains('rar') || type.contains('comicbook') || _isRar(header)) {
       return widget.book.isMagazine ? '.cbr' : '.rar';
     }
+    if (_isOldMicrosoftOffice(header)) return '.doc';
     return '';
   }
 
@@ -209,8 +219,10 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     if (lower.endsWith('.pdf')) return 'application/pdf';
     if (lower.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
     if (lower.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
-    if (lower.endsWith('.zip')) return 'application/zip';
     if (lower.endsWith('.epub')) return 'application/epub+zip';
+    if (lower.endsWith('.doc')) return 'application/msword';
+    if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (lower.endsWith('.zip')) return 'application/zip';
     if (lower.endsWith('.rar')) return 'application/vnd.rar';
     return 'application/octet-stream';
   }
@@ -382,13 +394,21 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
             const SizedBox(height: 30),
             const Icon(Icons.download_rounded, size: 80, color: orange),
             const SizedBox(height: 20),
-            Text(widget.book.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              widget.book.title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 35),
             if (!_isDownloading && !_downloadCompleted)
               ElevatedButton.icon(
                 onPressed: _startFreeDownload,
                 icon: _isLoadingAd
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
                     : const Icon(Icons.download_rounded),
                 label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'),
                 style: ElevatedButton.styleFrom(
@@ -399,9 +419,21 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
               ),
             if (_isDownloading || _downloadCompleted) ...[
               const SizedBox(height: 10),
-              Text(_status, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _downloadCompleted ? Colors.green : null)),
+              Text(
+                _status,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _downloadCompleted ? Colors.green : null,
+                ),
+              ),
               const SizedBox(height: 20),
-              LinearProgressIndicator(value: _progress, minHeight: 10, borderRadius: BorderRadius.circular(10)),
+              LinearProgressIndicator(
+                value: _progress,
+                minHeight: 10,
+                borderRadius: BorderRadius.circular(10),
+              ),
               if (_downloadCompleted) ...[
                 const SizedBox(height: 25),
                 OutlinedButton.icon(
