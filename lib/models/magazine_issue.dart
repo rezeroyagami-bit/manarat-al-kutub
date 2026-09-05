@@ -6,6 +6,7 @@ class MagazineIssue {
   final String? description;
   final String? coverUrl;
   final String downloadUrl;
+  final bool isExclusive;
 
   const MagazineIssue({
     required this.id,
@@ -15,6 +16,7 @@ class MagazineIssue {
     this.description,
     this.coverUrl,
     required this.downloadUrl,
+    this.isExclusive = false,
   });
 
   factory MagazineIssue.fromMap(
@@ -28,6 +30,7 @@ class MagazineIssue {
       description: map['description'] as String?,
       coverUrl: map['cover_url'] as String?,
       downloadUrl: map['download_url'] as String,
+      isExclusive: map['is_exclusive'] as bool? ?? false,
     );
   }
 }
