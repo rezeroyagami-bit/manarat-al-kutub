@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/supabase_config.dart';
 import 'services/supabase_service.dart';
+import 'services/remote_config.dart';
 import 'screens/app_shell.dart';
 
 Future<void> main() async {
@@ -19,6 +20,10 @@ Future<void> main() async {
     supabaseReady = true;
   } catch (e) {
     debugPrint('Supabase initialization error: $e');
+  }
+
+  if (supabaseReady) {
+    await RemoteConfigStore.instance.load(supabaseReady: true);
   }
 
   try {
@@ -144,10 +149,8 @@ class _KitaraAppState extends State<KitaraApp> {
     super.dispose();
   }
 
-  ThemeData _theme(Brightness brightness) {
-    const green = Color(0xFF2E7D32);
-    const orange = Color(0xFFF28C28);
-    final accent = isExclusiveTheme ? orange : green;
+  ThemeData _theme(Brightness brightness, KitaraRemoteConfig config) {
+    final accent = isExclusiveTheme ? config.exclusivePrimaryColor : config.freePrimaryColor;
     final dark = brightness == Brightness.dark;
     final background = isExclusiveTheme
         ? (dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7))
@@ -230,13 +233,19 @@ class _KitaraAppState extends State<KitaraApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'KITARA — كِتارا',
-      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
-      home: widget.supabaseReady ? const WelcomeScreen() : const SupabaseErrorScreen(),
+    return AnimatedBuilder(
+      animation: RemoteConfigStore.instance,
+      builder: (context, _) {
+        final config = RemoteConfigStore.instance.config;
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: config.appTitle,
+          themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          theme: _theme(Brightness.light, config),
+          darkTheme: _theme(Brightness.dark, config),
+          home: widget.supabaseReady ? const WelcomeScreen() : const SupabaseErrorScreen(),
+        );
+      },
     );
   }
 }

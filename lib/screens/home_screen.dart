@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../services/favorites_service.dart';
 import '../services/supabase_service.dart';
+import '../services/remote_config.dart';
 import 'about_screen.dart';
 import 'details_screen.dart';
 import 'magazine_screen.dart';
@@ -64,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Book> get filteredBooks {
     final query = searchText.trim().toLowerCase();
     return widget.books.where((book) {
-      final categoryMatches = selectedCategory == 'الكل' || book.category == selectedCategory;
+      final categoryMatches = selectedCategory == RemoteConfigStore.instance.config.allCategoryTitle || book.category == selectedCategory;
       if (!categoryMatches) return false;
       if (query.isEmpty) return true;
       return book.title.toLowerCase().contains(query) ||
@@ -80,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .toSet()
         .toList()
       ..sort();
-    return ['الكل', ...values];
+    return [config.allCategoryTitle, ...values];
   }
 
   Future<void> _openBook(Book book) async {
@@ -132,28 +133,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final config = RemoteConfigStore.instance.config;
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
     final isDark = theme.brightness == Brightness.dark;
     final results = filteredBooks;
     final books = results.where((book) => !book.isMagazine).toList();
-    final magazines = results.where((book) => book.isMagazine && !book.title.contains(' — العدد')).toList();
+    final hiddenOldMagazines = (config.values['hide_from_old_magazines_ids'] ?? '')
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    final magazines = results.where((book) =>
+        book.isMagazine && !hiddenOldMagazines.contains(book.id)).toList();
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 20,
-        title: const Text(
-          'KITARA — كِتارا',
+        title: Text(
+          config.appTitle,
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
         actions: [
           IconButton(
-            tooltip: 'الدعم والشكاوى',
+            tooltip: config.supportTooltip,
             onPressed: _openSupport,
             icon: const Icon(Icons.support_agent_rounded, color: Colors.white),
           ),
           IconButton(
-            tooltip: 'حول كِتارا',
+            tooltip: config.aboutTooltip,
             onPressed: _openAbout,
             icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
           ),
@@ -181,12 +189,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'مرحبًا بك في كِتارا',
+                      config.welcomeTitle,
                       style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'اقرأ • استكشف • استمتع',
+                      config.welcomeSubtitle,
                       style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.black54),
                     ),
                     if (!_loadingNews && _newsItems.isNotEmpty) ...[
@@ -204,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         controller: _searchController,
                         onChanged: (value) => setState(() => searchText = value),
                         decoration: InputDecoration(
-                          hintText: 'ابحث عن كتاب أو مجلة أو مؤلف...',
+                          hintText: config.searchHint,
                           prefixIcon: Icon(Icons.search_rounded, color: accent),
                           suffixIcon: searchText.isEmpty
                               ? null
@@ -221,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _SectionTitle(title: searchText.isEmpty ? 'تصفح حسب القسم' : 'نتائج البحث'),
+                    _SectionTitle(title: searchText.isEmpty ? config.categoriesTitle : config.searchResultsTitle),
                     if (searchText.isEmpty) ...[
                       const SizedBox(height: 12),
                       SizedBox(
@@ -248,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 28),
-                      _SectionTitle(title: 'الكتب'),
+                      _SectionTitle(title: config.booksTitle),
                       const SizedBox(height: 12),
                       books.isEmpty
                           ? _EmptyBox(text: 'لا توجد كتب مضافة حاليًا.')
@@ -265,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                       const SizedBox(height: 30),
-                      _SectionTitle(title: 'المجلات القديمة'),
+                      _SectionTitle(title: config.oldMagazinesTitle),
                       const SizedBox(height: 12),
                       magazines.isEmpty
                           ? _EmptyBox(text: 'لا توجد مجلات مضافة حاليًا.')
@@ -282,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                       const SizedBox(height: 30),
-                      _SectionTitle(title: 'أحدث المحتوى'),
+                      _SectionTitle(title: config.latestTitle),
                       const SizedBox(height: 14),
                     ],
                   ],

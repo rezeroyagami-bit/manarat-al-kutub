@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book.dart';
 import '../services/supabase_service.dart';
 import '../services/ad_block_detector.dart';
+import '../services/remote_config.dart';
 import 'ad_block_screen.dart';
 import 'downloads_screen.dart';
 import 'favorites_screen.dart';
@@ -50,6 +51,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    RemoteConfigStore.instance.addListener(_onRemoteConfigChanged);
     _loadExclusiveState();
     _loadBooksThenCheckAdBlocker();
   }
@@ -57,7 +59,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    RemoteConfigStore.instance.removeListener(_onRemoteConfigChanged);
     super.dispose();
+  }
+
+  void _onRemoteConfigChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -65,6 +72,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _revalidateActivation();
       _checkMaintenance();
+      RemoteConfigStore.instance.load();
     }
   }
 
@@ -259,6 +267,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (adBlockDetected) return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
     if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
 
+    final config = RemoteConfigStore.instance.config;
     final screens = <Widget>[
       HomeScreen(books: books, onTheme: widget.onThemeToggle),
       LibraryScreen(books: books),
@@ -304,10 +313,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         setState(() => currentIndex = index);
       },
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white70), selectedIcon: Icon(Icons.home_rounded, color: Colors.white), label: 'الرئيسية'),
-        NavigationDestination(icon: Icon(Icons.menu_book_outlined, color: Colors.white70), selectedIcon: Icon(Icons.menu_book_rounded, color: Colors.white), label: 'المكتبة'),
-        NavigationDestination(icon: Icon(Icons.favorite_border_rounded, color: Colors.white70), selectedIcon: Icon(Icons.favorite_rounded, color: Colors.white), label: 'المفضلة'),
-        NavigationDestination(icon: Icon(Icons.download_outlined, color: Colors.white70), selectedIcon: Icon(Icons.download_rounded, color: Colors.white), label: 'تنزيلاتي'),
+        NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white70), selectedIcon: Icon(Icons.home_rounded, color: Colors.white), label: config.navHome),
+        NavigationDestination(icon: Icon(Icons.menu_book_outlined, color: Colors.white70), selectedIcon: Icon(Icons.menu_book_rounded, color: Colors.white), label: config.navLibrary),
+        NavigationDestination(icon: Icon(Icons.favorite_border_rounded, color: Colors.white70), selectedIcon: Icon(Icons.favorite_rounded, color: Colors.white), label: config.navFavorites),
+        NavigationDestination(icon: Icon(Icons.download_outlined, color: Colors.white70), selectedIcon: Icon(Icons.download_rounded, color: Colors.white), label: config.navDownloads),
       ],
     );
   }
