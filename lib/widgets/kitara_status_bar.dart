@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/coins_service.dart';
 import '../services/supabase_service.dart';
+import '../services/remote_config.dart';
 
 class KitaraStatusBar extends StatefulWidget {
   final bool exclusiveUnlocked;
@@ -77,7 +78,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'للوصول إلى المحتوى الحصري والمدفوع أدخل الكود.',
+              RemoteConfigStore.instance.config.freeActivationMessage,
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
             ),
@@ -140,9 +141,8 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
-    const orange = Color(0xFFF28C28);
-    final accent = widget.exclusiveUnlocked ? orange : green;
+    final config = RemoteConfigStore.instance.config;
+    final accent = widget.exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;
 
     return Material(
       color: Colors.transparent,
@@ -183,7 +183,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
                 border: Border.all(color: accent.withValues(alpha: 0.48)),
               ),
               child: Text(
-                widget.exclusiveUnlocked ? 'المحتوى الحصري' : 'النسخة المجانية',
+                widget.exclusiveUnlocked ? config.exclusiveStatusText : config.freeStatusText,
                 style: TextStyle(
                   color: accent,
                   fontSize: 13,

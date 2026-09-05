@@ -298,9 +298,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Widget _buildNavigationBar(BuildContext context) {
-    const green = Color(0xFF2E7D32);
-    const orange = Color(0xFFF28C28);
-    final accent = exclusiveUnlocked ? orange : green;
+    final config = RemoteConfigStore.instance.config;
+    final accent = exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
