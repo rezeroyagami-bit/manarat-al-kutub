@@ -20,6 +20,18 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void initState() {
     super.initState();
+    DownloadsService.downloadsChanged.addListener(_onDownloadsChanged);
+    _loadDownloads();
+  }
+
+  @override
+  void dispose() {
+    DownloadsService.downloadsChanged.removeListener(_onDownloadsChanged);
+    super.dispose();
+  }
+
+  void _onDownloadsChanged() {
+    if (!mounted) return;
     _loadDownloads();
   }
 
@@ -34,7 +46,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   Future<void> _delete(DownloadedBook download) async {
     await _service.deleteDownload(download);
-    await _loadDownloads();
   }
 
   String _mimeType(String path) {
