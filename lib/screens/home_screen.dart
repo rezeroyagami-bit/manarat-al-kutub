@@ -365,7 +365,7 @@ class _NewsTickerState extends State<_NewsTicker> with SingleTickerProviderState
       height: 35,
       width: double.infinity,
       clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(7)),
+      decoration: BoxDecoration(color: const Color(0xFFC62828), borderRadius: BorderRadius.circular(7)),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (_, __) => LayoutBuilder(
