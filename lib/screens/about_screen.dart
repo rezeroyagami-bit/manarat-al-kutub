@@ -125,7 +125,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 30),
 
             const Text(
-              'تم إنشاء التطبيق بواسطة ZM',
+              'تم إنشاء التطبيق بواسطة ز . م',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Amiri',
