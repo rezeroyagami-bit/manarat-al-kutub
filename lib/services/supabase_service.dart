@@ -22,6 +22,21 @@ class SupabaseService {
         .toList();
   }
 
+  Future<bool> validateBookAccess({
+    required String bookId,
+    required String code,
+  }) async {
+    final response = await _client.rpc(
+      'validate_book_access',
+      params: {
+        'p_book_id': bookId,
+        'p_code': code,
+      },
+    );
+
+    return response == true;
+  }
+
   Future<List<MagazineIssue>> getMagazineIssues(
     String magazineId,
   ) async {
