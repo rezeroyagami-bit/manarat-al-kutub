@@ -11,29 +11,18 @@ class FavoritesScreen extends StatefulWidget {
   final List<Book> books;
   final SupabaseService supabaseService;
 
-  const FavoritesScreen({
-    super.key,
-    required this.books,
-    required this.supabaseService,
-  });
+  const FavoritesScreen({super.key, required this.books, required this.supabaseService});
 
   @override
-  State<FavoritesScreen> createState() =>
-      _FavoritesScreenState();
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final FavoritesService _favoritesService =
-      FavoritesService();
-
+  final FavoritesService _favoritesService = FavoritesService();
   Set<String> favoriteIds = {};
-
   List<Book> favoriteBooks = [];
   List<MagazineIssue> favoriteIssues = [];
-
   bool loading = true;
-
-  static const orange = Color(0xFFF28C28);
 
   @override
   void initState() {
@@ -42,44 +31,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _loadFavorites() async {
-    if (mounted) {
-      setState(() {
-        loading = true;
-      });
-    }
-
+    if (mounted) setState(() => loading = true);
     try {
-      final saved =
-          await _favoritesService.getFavorites();
-
-      final booksResult = widget.books
-          .where(
-            (book) => saved.contains(book.id),
-          )
-          .toList();
-
-      final List<MagazineIssue> allIssues = [];
-
-      final magazines =
-          await widget.supabaseService.getMagazines();
-
+      final saved = await _favoritesService.getFavorites();
+      final booksResult = widget.books.where((book) => saved.contains(book.id)).toList();
+      final allIssues = <MagazineIssue>[];
+      final magazines = await widget.supabaseService.getMagazines();
       for (final magazine in magazines) {
-        final magazineId =
-            magazine['id'] as String;
-
-        final issues = await widget
-            .supabaseService
-            .getMagazineIssues(magazineId);
-
-        for (final issue in issues) {
-          if (saved.contains(issue.id)) {
-            allIssues.add(issue);
-          }
-        }
+        final id = magazine['id'] as String;
+        final issues = await widget.supabaseService.getMagazineIssues(id);
+        allIssues.addAll(issues.where((issue) => saved.contains(issue.id)));
       }
-
       if (!mounted) return;
-
       setState(() {
         favoriteIds = saved;
         favoriteBooks = booksResult;
@@ -88,7 +51,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-
       setState(() {
         favoriteIds = {};
         favoriteBooks = [];
@@ -101,62 +63,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _removeFavorite(String id) async {
     try {
       await _favoritesService.removeFavorite(id);
-
       if (!mounted) return;
-
       setState(() {
         favoriteIds.remove(id);
-
-        favoriteBooks.removeWhere(
-          (book) => book.id == id,
-        );
-
-        favoriteIssues.removeWhere(
-          (issue) => issue.id == id,
-        );
+        favoriteBooks.removeWhere((book) => book.id == id);
+        favoriteIssues.removeWhere((issue) => issue.id == id);
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تمت إزالة العنصر من المفضلة',
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تعذر إزالة العنصر من المفضلة.',
-          ),
-        ),
-      );
-    }
+    } catch (_) {}
   }
 
   Future<void> _openBook(Book book) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetailsScreen(
-          book: book,
-        ),
-      ),
-    );
-
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => DetailsScreen(book: book)));
     await _loadFavorites();
   }
 
-  Future<void> _openIssue(
-    MagazineIssue issue,
-  ) async {
+  Future<void> _openIssue(MagazineIssue issue) async {
     final book = Book(
       id: issue.id,
-      title: issue.title ??
-          'العدد ${issue.issueNumber}',
+      title: issue.title ?? 'العدد ${issue.issueNumber}',
       author: 'مجلة',
       description: issue.description,
       category: 'مجلات',
@@ -164,115 +88,61 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       downloadUrl: issue.downloadUrl,
       isMagazine: true,
     );
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DownloadOptionsScreen(
-          book: book,
-        ),
-      ),
-    );
-
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => DownloadOptionsScreen(book: book)));
     await _loadFavorites();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            color: orange,
-          ),
-        ),
-      );
-    }
-
-    final hasFavorites =
-        favoriteBooks.isNotEmpty ||
-        favoriteIssues.isNotEmpty;
+    final accent = Theme.of(context).colorScheme.primary;
+    if (loading) return Scaffold(body: Center(child: CircularProgressIndicator(color: accent)));
+    final hasFavorites = favoriteBooks.isNotEmpty || favoriteIssues.isNotEmpty;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'المفضلة',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        appBar: AppBar(title: const Text('المفضلة', style: TextStyle(fontWeight: FontWeight.bold))),
         body: !hasFavorites
-            ? _buildEmptyState()
+            ? _buildEmptyState(accent)
             : RefreshIndicator(
-                color: orange,
+                color: accent,
                 onRefresh: _loadFavorites,
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
                     if (favoriteBooks.isNotEmpty) ...[
-                      const Text(
-                        'الكتب',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const Text('الكتب', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      ...favoriteBooks.map(
-                        (book) => Padding(
-                          padding:
-                              const EdgeInsets.only(
-                            bottom: 12,
-                          ),
-                          child: _FavoriteBookCard(
-                            book: book,
-                            onTap: () =>
-                                _openBook(book),
-                            onRemove: () =>
-                                _removeFavorite(
-                              book.id,
+                      ...favoriteBooks.map((book) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _FavoriteCard(
+                              coverUrl: book.coverUrl,
+                              title: book.title,
+                              subtitle: book.author,
+                              label: book.category,
+                              accent: accent,
+                              onTap: () => _openBook(book),
+                              onRemove: () => _removeFavorite(book.id),
                             ),
-                          ),
-                        ),
-                      ),
+                          )),
                     ],
-
                     if (favoriteIssues.isNotEmpty) ...[
                       const SizedBox(height: 12),
-
-                      const Text(
-                        'أعداد المجلات',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
+                      const Text('أعداد المجلات', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-
-                      ...favoriteIssues.map(
-                        (issue) => Padding(
-                          padding:
-                              const EdgeInsets.only(
-                            bottom: 12,
-                          ),
-                          child: _FavoriteIssueCard(
-                            issue: issue,
-                            onTap: () =>
-                                _openIssue(issue),
-                            onRemove: () =>
-                                _removeFavorite(
-                              issue.id,
+                      ...favoriteIssues.map((issue) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _FavoriteCard(
+                              coverUrl: issue.coverUrl,
+                              title: issue.title ?? 'العدد ${issue.issueNumber}',
+                              subtitle: 'العدد ${issue.issueNumber}',
+                              label: 'عدد مجلة',
+                              accent: accent,
+                              onTap: () => _openIssue(issue),
+                              onRemove: () => _removeFavorite(issue.id),
                             ),
-                          ),
-                        ),
-                      ),
+                          )),
                     ],
-
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -280,50 +150,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color accent) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
         child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 90,
               height: 90,
-              decoration: BoxDecoration(
-                color:
-                    orange.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.favorite_border_rounded,
-                size: 48,
-                color: orange,
-              ),
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Icon(Icons.favorite_border_rounded, size: 48, color: accent),
             ),
-
             const SizedBox(height: 20),
-
-            const Text(
-              'المفضلة فارغة',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
+            const Text('المفضلة فارغة', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
             Text(
-              'أضف الكتب والأعداد التي تعجبك إلى المفضلة\n'
-              'لتجدها هنا بسهولة.',
+              'أضف الكتب والأعداد التي تعجبك إلى المفضلة\nلتجدها هنا بسهولة.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.6,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 15, height: 1.6, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -332,95 +178,29 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 }
 
-// ============================================================
-// بطاقة الكتاب
-// ============================================================
-
-class _FavoriteBookCard extends StatelessWidget {
-  final Book book;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  const _FavoriteBookCard({
-    required this.book,
-    required this.onTap,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseFavoriteCard(
-      coverUrl: book.coverUrl,
-      title: book.title,
-      subtitle: book.author,
-      label: book.category,
-      onTap: onTap,
-      onRemove: onRemove,
-    );
-  }
-}
-
-// ============================================================
-// بطاقة العدد
-// ============================================================
-
-class _FavoriteIssueCard extends StatelessWidget {
-  final MagazineIssue issue;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  const _FavoriteIssueCard({
-    required this.issue,
-    required this.onTap,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseFavoriteCard(
-      coverUrl: issue.coverUrl,
-      title: issue.title ??
-          'العدد ${issue.issueNumber}',
-      subtitle:
-          'العدد ${issue.issueNumber}',
-      label: 'عدد مجلة',
-      onTap: onTap,
-      onRemove: onRemove,
-    );
-  }
-}
-
-// ============================================================
-// البطاقة المشتركة
-// ============================================================
-
-class _BaseFavoriteCard extends StatelessWidget {
+class _FavoriteCard extends StatelessWidget {
   final String? coverUrl;
   final String title;
   final String subtitle;
   final String label;
+  final Color accent;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
-  const _BaseFavoriteCard({
+  const _FavoriteCard({
     required this.coverUrl,
     required this.title,
     required this.subtitle,
     required this.label,
+    required this.accent,
     required this.onTap,
     required this.onRemove,
   });
 
-  static const orange = Color(0xFFF28C28);
-
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -432,90 +212,30 @@ class _BaseFavoriteCard extends StatelessWidget {
                 width: 65,
                 height: 88,
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(10),
-                  child: coverUrl != null &&
-                          coverUrl!.trim().isNotEmpty
-                      ? Image.network(
-                          coverUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) =>
-                                  const _FavoritePlaceholder(),
-                        )
-                      : const _FavoritePlaceholder(),
+                  borderRadius: BorderRadius.circular(10),
+                  child: coverUrl != null && coverUrl!.trim().isNotEmpty
+                      ? Image.network(coverUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _Placeholder(accent: accent))
+                      : _Placeholder(accent: accent),
                 ),
               ),
-
               const SizedBox(width: 14),
-
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        height: 1.35,
-                      ),
-                    ),
-
+                    Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.35)),
                     const SizedBox(height: 6),
-
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-
+                    Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                     const SizedBox(height: 7),
-
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: orange.withValues(
-                          alpha: 0.10,
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: orange,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                      child: Text(label, style: TextStyle(fontSize: 11, color: accent, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
               ),
-
-              IconButton(
-                onPressed: onRemove,
-                tooltip: 'إزالة من المفضلة',
-                icon: const Icon(
-                  Icons.favorite_rounded,
-                  color: Colors.red,
-                ),
-              ),
+              IconButton(onPressed: onRemove, tooltip: 'إزالة من المفضلة', icon: const Icon(Icons.favorite_rounded, color: Colors.red)),
             ],
           ),
         ),
@@ -524,17 +244,13 @@ class _BaseFavoriteCard extends StatelessWidget {
   }
 }
 
-class _FavoritePlaceholder extends StatelessWidget {
-  const _FavoritePlaceholder();
+class _Placeholder extends StatelessWidget {
+  final Color accent;
+  const _Placeholder({required this.accent});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF3F3F3),
-      child: const Icon(
-        Icons.menu_book_rounded,
-        color: Color(0xFFF28C28),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+        color: accent.withValues(alpha: 0.08),
+        child: Icon(Icons.menu_book_rounded, color: accent),
+      );
 }
