@@ -96,4 +96,25 @@ class SupabaseService {
         .map((item) => item as Map<String, dynamic>)
         .toList();
   }
+
+  Future<Map<String, String>> getMaintenanceSettings() async {
+    final response = await _client
+        .from('app_settings')
+        .select('key,value')
+        .inFilter('key', [
+          'maintenance_mode',
+          'maintenance_title',
+          'maintenance_message',
+          'maintenance_allow_downloads',
+        ]);
+
+    final settings = <String, String>{};
+    for (final item in (response as List)) {
+      final map = item as Map<String, dynamic>;
+      final key = map['key']?.toString();
+      final value = map['value']?.toString();
+      if (key != null && value != null) settings[key] = value;
+    }
+    return settings;
+  }
 }
