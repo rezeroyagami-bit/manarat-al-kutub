@@ -73,6 +73,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     });
   }
 
+  void _selectSchoolLevel(String level) {
+    setState(() => _selectedSchoolLevel = level);
+  }
+
   void _openBook(Book book) {
     if (book.isMagazine) {
       _openMagazine(book);
@@ -213,17 +217,55 @@ class _LibraryScreenState extends State<LibraryScreen> {
           _LevelCard(
             icon: Icons.child_care_rounded,
             title: 'الطور الابتدائي',
-            onTap: () => setState(() => _selectedSchoolLevel = 'الابتدائي'),
+            onTap: () => _selectSchoolLevel('الابتدائي'),
           ),
           _LevelCard(
             icon: Icons.school_outlined,
             title: 'الطور المتوسط',
-            onTap: () => setState(() => _selectedSchoolLevel = 'المتوسط'),
+            onTap: () => _selectSchoolLevel('المتوسط'),
           ),
           _LevelCard(
             icon: Icons.cast_for_education_rounded,
             title: 'الطور الثانوي',
-            onTap: () => setState(() => _selectedSchoolLevel = 'الثانوي'),
+            onTap: () => _selectSchoolLevel('الثانوي'),
+          ),
+        ],
+      );
+    }
+
+    if (_selectedSection == 'الكتب المدرسية' && _selectedSchoolLevel == 'الابتدائي') {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
+        children: [
+          const Text(
+            'الطور الابتدائي',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 18),
+          _LevelCard(
+            icon: Icons.looks_one_rounded,
+            title: 'الأولى ابتدائي',
+            onTap: () => _selectSchoolLevel('الأولى ابتدائي'),
+          ),
+          _LevelCard(
+            icon: Icons.looks_two_rounded,
+            title: 'الثانية ابتدائي',
+            onTap: () => _selectSchoolLevel('الثانية ابتدائي'),
+          ),
+          _LevelCard(
+            icon: Icons.looks_3_rounded,
+            title: 'الثالثة ابتدائي',
+            onTap: () => _selectSchoolLevel('الثالثة ابتدائي'),
+          ),
+          _LevelCard(
+            icon: Icons.looks_4_rounded,
+            title: 'الرابعة ابتدائي',
+            onTap: () => _selectSchoolLevel('الرابعة ابتدائي'),
+          ),
+          _LevelCard(
+            icon: Icons.looks_5_rounded,
+            title: 'الخامسة ابتدائي',
+            onTap: () => _selectSchoolLevel('الخامسة ابتدائي'),
           ),
         ],
       );
