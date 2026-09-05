@@ -21,8 +21,7 @@ class DownloadOptionsScreen extends StatefulWidget {
       _DownloadOptionsScreenState();
 }
 
-class _DownloadOptionsScreenState
-    extends State<DownloadOptionsScreen> {
+class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   RewardedAd? _rewardedAd;
 
   bool _isLoadingAd = false;
@@ -46,10 +45,6 @@ class _DownloadOptionsScreenState
     _loadRewardedAd();
   }
 
-  // ============================================================
-  // الإعلانات
-  // ============================================================
-
   void _loadRewardedAd() {
     if (_isLoadingAd) return;
 
@@ -63,8 +58,7 @@ class _DownloadOptionsScreenState
           _rewardedAd = ad;
           _isLoadingAd = false;
 
-          ad.fullScreenContentCallback =
-              FullScreenContentCallback(
+          ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (ad) {
               ad.dispose();
               _rewardedAd = null;
@@ -76,8 +70,7 @@ class _DownloadOptionsScreenState
                 _loadRewardedAd();
               }
             },
-            onAdFailedToShowFullScreenContent:
-                (ad, error) {
+            onAdFailedToShowFullScreenContent: (ad, error) {
               ad.dispose();
               _rewardedAd = null;
               _earnedReward = false;
@@ -85,12 +78,9 @@ class _DownloadOptionsScreenState
               _loadRewardedAd();
 
               if (mounted) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      'تعذر تشغيل الإعلان. حاول مرة أخرى.',
-                    ),
+                    content: Text('تعذر تشغيل الإعلان. حاول مرة أخرى.'),
                   ),
                 );
               }
@@ -105,9 +95,7 @@ class _DownloadOptionsScreenState
           _rewardedAd = null;
           _isLoadingAd = false;
 
-          debugPrint(
-            'REWARDED AD LOAD ERROR: ${error.message}',
-          );
+          debugPrint('REWARDED AD LOAD ERROR: ${error.message}');
 
           if (mounted) {
             setState(() {});
@@ -125,9 +113,7 @@ class _DownloadOptionsScreenState
     if (ad == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'الإعلان غير جاهز حاليًا. حاول مرة أخرى بعد قليل.',
-          ),
+          content: Text('الإعلان غير جاهز حاليًا. حاول مرة أخرى بعد قليل.'),
         ),
       );
 
@@ -139,26 +125,15 @@ class _DownloadOptionsScreenState
     _earnedReward = false;
 
     ad.show(
-      onUserEarnedReward: (
-        AdWithoutView ad,
-        RewardItem reward,
-      ) {
+      onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
         _earnedReward = true;
       },
     );
   }
 
-  // ============================================================
-  // استخراج رابط MediaFire
-  // ============================================================
-
-  Future<String?> _getDirectMediaFireUrl(
-    String pageUrl,
-  ) async {
+  Future<String?> _getDirectMediaFireUrl(String pageUrl) async {
     try {
-      debugPrint(
-        'MEDIAFIRE PAGE REQUEST STARTED',
-      );
+      debugPrint('MEDIAFIRE PAGE REQUEST STARTED');
 
       final response = await _dio.get<String>(
         pageUrl,
@@ -166,27 +141,18 @@ class _DownloadOptionsScreenState
           responseType: ResponseType.plain,
           followRedirects: true,
           maxRedirects: 10,
-          receiveTimeout:
-              const Duration(seconds: 30),
-          sendTimeout:
-              const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
           validateStatus: (status) {
-            return status != null &&
-                status >= 200 &&
-                status < 400;
+            return status != null && status >= 200 && status < 400;
           },
           headers: {
             'User-Agent':
-                'Mozilla/5.0 (Linux; Android 15) '
-                'AppleWebKit/537.36 '
-                '(KHTML, like Gecko) '
-                'Chrome/140.0 Mobile Safari/537.36',
+                'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36',
             'Accept':
-                'text/html,application/xhtml+xml,'
-                'application/xml;q=0.9,image/avif,'
-                'image/webp,*/*;q=0.8',
-            'Accept-Language':
-                'ar-DZ,ar;q=0.9,en-US;q=0.8,en;q=0.7',
+                'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar-DZ,ar;q=0.9,en-US;q=0.8,en;q=0.7',
             'Cache-Control': 'no-cache',
           },
         ),
@@ -194,21 +160,14 @@ class _DownloadOptionsScreenState
 
       final html = response.data;
 
-      debugPrint(
-        'MEDIAFIRE HTTP STATUS: ${response.statusCode}',
-      );
+      debugPrint('MEDIAFIRE HTTP STATUS: ${response.statusCode}');
 
       if (html == null || html.trim().isEmpty) {
-        throw Exception(
-          'صفحة MediaFire فارغة.',
-        );
+        throw Exception('صفحة MediaFire فارغة.');
       }
 
-      debugPrint(
-        'MEDIAFIRE HTML LENGTH: ${html.length}',
-      );
+      debugPrint('MEDIAFIRE HTML LENGTH: ${html.length}');
 
-      // فك بعض أنواع الترميز الموجودة في HTML/JSON.
       var decodedHtml = html;
 
       decodedHtml = decodedHtml
@@ -223,48 +182,31 @@ class _DownloadOptionsScreenState
           .replaceAll('&#x2f;', '/')
           .replaceAll('&#47;', '/');
 
-      // ========================================================
-      // أنماط متعددة للبحث عن رابط التنزيل.
-      // ========================================================
-
       final patterns = <RegExp>[
-        // href="https://download...."
         RegExp(
           r'''href\s*=\s*["'](https?://download[^"']+)["']''',
           caseSensitive: false,
         ),
-
-        // href='https://download....'
         RegExp(
           r'''href\s*=\s*["'](https?://[^"']*mediafire[^"']*download[^"']+)["']''',
           caseSensitive: false,
         ),
-
-        // "download_url":"https://..."
         RegExp(
           r'''"download_url"\s*:\s*"([^"]+)"''',
           caseSensitive: false,
         ),
-
-        // "downloadLink":"https://..."
         RegExp(
           r'''"downloadLink"\s*:\s*"([^"]+)"''',
           caseSensitive: false,
         ),
-
-        // data-download-url="..."
         RegExp(
           r'''data-download-url\s*=\s*["']([^"']+)["']''',
           caseSensitive: false,
         ),
-
-        // downloadUrl:"..."
         RegExp(
           r'''downloadUrl\s*:\s*["']([^"']+)["']''',
           caseSensitive: false,
         ),
-
-        // أي رابط يبدأ بـ download داخل HTML
         RegExp(
           r'''(https?://download[^"' <>\s]+)''',
           caseSensitive: false,
@@ -272,9 +214,7 @@ class _DownloadOptionsScreenState
       ];
 
       for (final pattern in patterns) {
-        final match = pattern.firstMatch(
-          decodedHtml,
-        );
+        final match = pattern.firstMatch(decodedHtml);
 
         if (match == null) {
           continue;
@@ -288,7 +228,6 @@ class _DownloadOptionsScreenState
 
         url = url.trim();
 
-        // إزالة علامات نهاية غير مرغوبة.
         url = url
             .replaceAll(r'\u0026', '&')
             .replaceAll(r'\/', '/')
@@ -298,12 +237,16 @@ class _DownloadOptionsScreenState
 
         try {
           url = Uri.decodeComponent(url);
-        } catch (_) {
-          // إذا لم يكن URL مشفرًا بالكامل،
-          // نستخدمه كما هو.
+        } catch (_) {}
+
+        // تثبيت القيمة غير nullable بعد التحقق منها حتى يتوافق الكود
+        // مع Dart null-safety.
+        final safeUrl = url;
+        if (safeUrl == null || safeUrl.trim().isEmpty) {
+          continue;
         }
 
-        final parsedUri = Uri.tryParse(url);
+        final parsedUri = Uri.tryParse(safeUrl);
 
         if (parsedUri == null ||
             !parsedUri.hasScheme ||
@@ -311,19 +254,12 @@ class _DownloadOptionsScreenState
           continue;
         }
 
-        debugPrint(
-          'MEDIAFIRE DIRECT URL FOUND',
-        );
+        debugPrint('MEDIAFIRE DIRECT URL FOUND');
 
-        return url;
+        return safeUrl;
       }
 
-      // ========================================================
-      // فحص إضافي لوجود صفحة MediaFire نفسها.
-      // ========================================================
-
-      final lowerHtml =
-          decodedHtml.toLowerCase();
+      final lowerHtml = decodedHtml.toLowerCase();
 
       if (lowerHtml.contains('captcha') ||
           lowerHtml.contains('cloudflare')) {
@@ -343,62 +279,38 @@ class _DownloadOptionsScreenState
         'لم يتم العثور على رابط التنزيل في صفحة MediaFire.',
       );
     } on DioException catch (e) {
-      debugPrint(
-        'MEDIAFIRE DIO ERROR: ${e.type}',
-      );
-      debugPrint(
-        'MEDIAFIRE DIO MESSAGE: ${e.message}',
-      );
+      debugPrint('MEDIAFIRE DIO ERROR: ${e.type}');
+      debugPrint('MEDIAFIRE DIO MESSAGE: ${e.message}');
 
-      throw Exception(
-        _getDioErrorMessage(e),
-      );
+      throw Exception(_getDioErrorMessage(e));
     } catch (e) {
-      debugPrint(
-        'MEDIAFIRE ERROR: $e',
-      );
-
+      debugPrint('MEDIAFIRE ERROR: $e');
       rethrow;
     }
   }
 
-  // ============================================================
-  // رسائل أخطاء الشبكة
-  // ============================================================
-
-  String _getDioErrorMessage(
-    DioException error,
-  ) {
+  String _getDioErrorMessage(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
         return 'انتهت مهلة الاتصال بـ MediaFire.';
-
       case DioExceptionType.sendTimeout:
         return 'انتهت مهلة إرسال الطلب.';
-
       case DioExceptionType.receiveTimeout:
         return 'انتهت مهلة استقبال البيانات.';
-
+      case DioExceptionType.transformTimeout:
+        return 'انتهت مهلة معالجة البيانات. يرجى المحاولة مرة أخرى.';
       case DioExceptionType.connectionError:
         return 'تعذر الاتصال بالإنترنت.';
-
       case DioExceptionType.badResponse:
         return 'MediaFire أعاد خطأ HTTP ${error.response?.statusCode ?? ''}.';
-
       case DioExceptionType.cancel:
         return 'تم إلغاء عملية التحميل.';
-
       case DioExceptionType.badCertificate:
         return 'تعذر التحقق من شهادة الاتصال الآمن.';
-
       case DioExceptionType.unknown:
         return 'حدث خطأ غير معروف أثناء الاتصال بـ MediaFire.';
     }
   }
-
-  // ============================================================
-  // اسم الملف
-  // ============================================================
 
   String _createFileName() {
     var title = widget.book.title
@@ -417,9 +329,7 @@ class _DownloadOptionsScreenState
       title = 'kitara_file';
     }
 
-    final extension = _getExtensionFromUrl(
-      widget.book.downloadUrl,
-    );
+    final extension = _getExtensionFromUrl(widget.book.downloadUrl);
 
     if (extension.isEmpty) {
       return '$title.cbr';
@@ -428,162 +338,90 @@ class _DownloadOptionsScreenState
     return '$title.$extension';
   }
 
-  String _getExtensionFromUrl(
-    String url,
-  ) {
+  String _getExtensionFromUrl(String url) {
     try {
       final uri = Uri.parse(url);
-
       final segments = uri.pathSegments;
 
       for (final segment in segments.reversed) {
-        final decoded = Uri.decodeComponent(
-          segment.replaceAll('+', ' '),
-        );
-
+        final decoded = Uri.decodeComponent(segment.replaceAll('+', ' '));
         final dot = decoded.lastIndexOf('.');
 
-        if (dot > 0 &&
-            dot < decoded.length - 1) {
-          final extension =
-              decoded.substring(dot + 1);
+        if (dot > 0 && dot < decoded.length - 1) {
+          final extension = decoded.substring(dot + 1);
 
           if (extension.length <= 5 &&
-              RegExp(
-                r'^[a-zA-Z0-9]+$',
-              ).hasMatch(extension)) {
+              RegExp(r'^[a-zA-Z0-9]+$').hasMatch(extension)) {
             return extension.toLowerCase();
           }
         }
       }
     } catch (e) {
-      debugPrint(
-        'EXTENSION ERROR: $e',
-      );
+      debugPrint('EXTENSION ERROR: $e');
     }
 
     return '';
   }
 
-  // ============================================================
-  // نوع الملف
-  // ============================================================
+  String _getMimeType(String fileName) {
+    final lowerName = fileName.toLowerCase();
 
-  String _getMimeType(
-    String fileName,
-  ) {
-    final lowerName =
-        fileName.toLowerCase();
-
-    if (lowerName.endsWith('.pdf')) {
-      return 'application/pdf';
-    }
-
-    if (lowerName.endsWith('.cbr')) {
-      return 'application/vnd.comicbook-rar';
-    }
-
-    if (lowerName.endsWith('.cbz')) {
-      return 'application/vnd.comicbook+zip';
-    }
-
-    if (lowerName.endsWith('.zip')) {
-      return 'application/zip';
-    }
-
-    if (lowerName.endsWith('.epub')) {
-      return 'application/epub+zip';
-    }
-
-    if (lowerName.endsWith('.rar')) {
-      return 'application/vnd.rar';
-    }
+    if (lowerName.endsWith('.pdf')) return 'application/pdf';
+    if (lowerName.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
+    if (lowerName.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
+    if (lowerName.endsWith('.zip')) return 'application/zip';
+    if (lowerName.endsWith('.epub')) return 'application/epub+zip';
+    if (lowerName.endsWith('.rar')) return 'application/vnd.rar';
 
     return 'application/octet-stream';
   }
 
-  // ============================================================
-  // رسالة الخطأ للمستخدم
-  // ============================================================
-
-  String _getUserFriendlyError(
-    Object error,
-  ) {
+  String _getUserFriendlyError(Object error) {
     final message = error.toString();
 
-    if (message.contains(
-      'لم يتم العثور على رابط التنزيل',
-    )) {
+    if (message.contains('لم يتم العثور على رابط التنزيل')) {
       return 'تعذر العثور على رابط تنزيل الملف في MediaFire.\n'
           'قد تكون صفحة الملف تغيرت أو تمنع الوصول الآلي.';
     }
 
-    if (message.contains(
-      'طلب التحقق',
-    )) {
+    if (message.contains('طلب التحقق')) {
       return 'MediaFire طلب التحقق قبل تنزيل الملف.\n'
           'حاول مرة أخرى لاحقًا.';
     }
 
-    if (message.contains(
-      'يطلب تسجيل الدخول',
-    )) {
+    if (message.contains('يطلب تسجيل الدخول')) {
       return 'هذا الملف يتطلب تسجيل الدخول إلى MediaFire.';
     }
 
-    if (message.contains(
-      'تعذر الاتصال بالإنترنت',
-    )) {
+    if (message.contains('تعذر الاتصال بالإنترنت')) {
       return 'تحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
     }
 
-    if (message.contains(
-      'انتهت مهلة',
-    )) {
+    if (message.contains('انتهت مهلة')) {
       return 'انتهت مهلة الاتصال.\n'
           'تحقق من سرعة الإنترنت وحاول مرة أخرى.';
     }
 
-    if (message.contains(
-      'PUBLIC_SAVE_FAILED',
-    )) {
+    if (message.contains('PUBLIC_SAVE_FAILED')) {
       return 'تم تنزيل الملف، لكن تعذر حفظه في مجلد التنزيلات.';
     }
 
-    if (message.contains(
-      'TEMP_FILE_NOT_FOUND',
-    )) {
+    if (message.contains('TEMP_FILE_NOT_FOUND')) {
       return 'فشل إنشاء الملف المؤقت أثناء التنزيل.';
     }
 
-    // نعرض رسالة الخطأ الحقيقية إذا كانت مفيدة،
-    // ولكن لا نعرض أي رابط.
     var cleanMessage = message
-        .replaceAll(
-          RegExp(
-            r'https?://\S+',
-            caseSensitive: false,
-          ),
-          '[الرابط مخفي]',
-        )
-        .replaceFirst(
-          'Exception: ',
-          '',
-        );
+        .replaceAll(RegExp(r'https?://\S+', caseSensitive: false), '[الرابط مخفي]')
+        .replaceFirst('Exception: ', '');
 
     if (cleanMessage.length > 300) {
-      cleanMessage =
-          cleanMessage.substring(0, 300);
+      cleanMessage = cleanMessage.substring(0, 300);
     }
 
     return cleanMessage.isEmpty
         ? 'حدث خطأ غير معروف أثناء التحميل.'
         : cleanMessage;
   }
-
-  // ============================================================
-  // بدء التحميل
-  // ============================================================
 
   Future<void> _startDownload() async {
     if (_isDownloading) return;
@@ -593,48 +431,24 @@ class _DownloadOptionsScreenState
         _isDownloading = true;
         _downloadCompleted = false;
         _progress = 0.0;
-        _status =
-            'جاري تجهيز التحميل...';
+        _status = 'جاري تجهيز التحميل...';
       });
     }
 
     File? temporaryFile;
 
     try {
-      // --------------------------------------------------------
-      // 1. الحصول على رابط MediaFire داخليًا.
-      // --------------------------------------------------------
+      final directUrl = await _getDirectMediaFireUrl(widget.book.downloadUrl);
 
-      final directUrl =
-          await _getDirectMediaFireUrl(
-        widget.book.downloadUrl,
-      );
-
-      if (directUrl == null ||
-          directUrl.isEmpty) {
-        throw Exception(
-          'DIRECT_URL_NOT_FOUND',
-        );
+      if (directUrl == null || directUrl.isEmpty) {
+        throw Exception('DIRECT_URL_NOT_FOUND');
       }
 
-      // --------------------------------------------------------
-      // 2. المجلد المؤقت.
-      // --------------------------------------------------------
+      final temporaryDirectory = await getTemporaryDirectory();
+      final fileName = _createFileName();
+      final temporaryPath = '${temporaryDirectory.path}/$fileName';
+      temporaryFile = File(temporaryPath);
 
-      final temporaryDirectory =
-          await getTemporaryDirectory();
-
-      final fileName =
-          _createFileName();
-
-      final temporaryPath =
-          '${temporaryDirectory.path}/$fileName';
-
-      temporaryFile =
-          File(temporaryPath);
-
-      // إذا كان هناك ملف قديم بنفس الاسم،
-      // نحذفه قبل بدء التحميل.
       if (await temporaryFile.exists()) {
         try {
           await temporaryFile.delete();
@@ -643,187 +457,115 @@ class _DownloadOptionsScreenState
 
       if (mounted) {
         setState(() {
-          _status =
-              'جاري الاتصال بملف التحميل...';
+          _status = 'جاري الاتصال بملف التحميل...';
         });
       }
 
-      // --------------------------------------------------------
-      // 3. تنزيل الملف.
-      // --------------------------------------------------------
-
-      debugPrint(
-        'FILE DOWNLOAD STARTED',
-      );
+      debugPrint('FILE DOWNLOAD STARTED');
 
       await _dio.download(
         directUrl,
         temporaryPath,
         deleteOnError: true,
-        onReceiveProgress:
-            (received, total) {
+        onReceiveProgress: (received, total) {
           if (!mounted) return;
 
           if (total > 0) {
-            var value =
-                received / total;
-
-            if (value > 1.0) {
-              value = 1.0;
-            }
+            var value = received / total;
+            if (value > 1.0) value = 1.0;
 
             setState(() {
               _progress = value;
-              _status =
-                  'جاري التحميل... '
-                  '${(value * 100).toInt()}%';
+              _status = 'جاري التحميل... ${(value * 100).toInt()}%';
             });
           } else {
             setState(() {
-              _status =
-                  'جاري التحميل...';
+              _status = 'جاري التحميل...';
             });
           }
         },
         options: Options(
-          responseType:
-              ResponseType.bytes,
+          responseType: ResponseType.bytes,
           followRedirects: true,
           maxRedirects: 10,
-          receiveTimeout:
-              const Duration(minutes: 15),
-          sendTimeout:
-              const Duration(minutes: 2),
+          receiveTimeout: const Duration(minutes: 15),
+          sendTimeout: const Duration(minutes: 2),
           headers: {
             'User-Agent':
-                'Mozilla/5.0 (Linux; Android 15) '
-                'AppleWebKit/537.36 '
-                '(KHTML, like Gecko) '
-                'Chrome/140.0 Mobile Safari/537.36',
-            'Accept':
-                '*/*',
+                'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36',
+            'Accept': '*/*',
           },
           validateStatus: (status) {
-            return status != null &&
-                status >= 200 &&
-                status < 400;
+            return status != null && status >= 200 && status < 400;
           },
         ),
       );
 
-      debugPrint(
-        'FILE DOWNLOAD FINISHED',
-      );
-
-      // --------------------------------------------------------
-      // 4. التأكد من وجود الملف.
-      // --------------------------------------------------------
+      debugPrint('FILE DOWNLOAD FINISHED');
 
       if (!await temporaryFile.exists()) {
-        throw Exception(
-          'TEMP_FILE_NOT_FOUND',
-        );
+        throw Exception('TEMP_FILE_NOT_FOUND');
       }
 
-      final fileLength =
-          await temporaryFile.length();
-
-      debugPrint(
-        'TEMP FILE SIZE: $fileLength',
-      );
+      final fileLength = await temporaryFile.length();
+      debugPrint('TEMP FILE SIZE: $fileLength');
 
       if (fileLength <= 0) {
-        throw Exception(
-          'تم إنشاء الملف لكنه فارغ.',
-        );
+        throw Exception('تم إنشاء الملف لكنه فارغ.');
       }
-
-      // --------------------------------------------------------
-      // 5. حفظ الملف في Downloads العامة.
-      // --------------------------------------------------------
 
       if (mounted) {
         setState(() {
-          _status =
-              'جاري حفظ الملف في التنزيلات...';
+          _status = 'جاري حفظ الملف في التنزيلات...';
         });
       }
 
-      debugPrint(
-        'PUBLIC FILE SAVE STARTED',
-      );
+      debugPrint('PUBLIC FILE SAVE STARTED');
 
-      final savedFile =
-          await _fileSaver.saveFile(
+      final savedFile = await _fileSaver.saveFile(
         file: temporaryFile,
         fileName: fileName,
-        mimeType:
-            _getMimeType(fileName),
+        mimeType: _getMimeType(fileName),
       );
 
-      if (savedFile == null ||
-          !savedFile.isSuccess) {
-        throw Exception(
-          'PUBLIC_SAVE_FAILED',
-        );
+      if (savedFile == null || !savedFile.isSuccess) {
+        throw Exception('PUBLIC_SAVE_FAILED');
       }
 
-      debugPrint(
-        'PUBLIC FILE SAVE SUCCESS',
-      );
-
-      // --------------------------------------------------------
-      // 6. حذف الملف المؤقت.
-      // --------------------------------------------------------
+      debugPrint('PUBLIC FILE SAVE SUCCESS');
 
       try {
         await temporaryFile.delete();
       } catch (e) {
-        debugPrint(
-          'TEMP FILE DELETE ERROR: $e',
-        );
+        debugPrint('TEMP FILE DELETE ERROR: $e');
       }
-
-      // --------------------------------------------------------
-      // 7. نجاح العملية.
-      // --------------------------------------------------------
 
       if (mounted) {
         setState(() {
           _progress = 1.0;
           _isDownloading = false;
           _downloadCompleted = true;
-          _status =
-              'اكتمل التحميل';
+          _status = 'اكتمل التحميل';
         });
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'تم تحميل الملف وحفظه في مجلد التنزيلات.',
-            ),
+            content: Text('تم تحميل الملف وحفظه في مجلد التنزيلات.'),
           ),
         );
       }
 
       _loadRewardedAd();
     } on DioException catch (e) {
-      debugPrint(
-        'DOWNLOAD DIO ERROR: ${e.type}',
-      );
-      debugPrint(
-        'DOWNLOAD DIO MESSAGE: ${e.message}',
-      );
+      debugPrint('DOWNLOAD DIO ERROR: ${e.type}');
+      debugPrint('DOWNLOAD DIO MESSAGE: ${e.message}');
 
-      await _cleanupTemporaryFile(
-        temporaryFile,
-      );
+      await _cleanupTemporaryFile(temporaryFile);
 
       if (!mounted) return;
 
-      final errorMessage =
-          _getDioErrorMessage(e);
+      final errorMessage = _getDioErrorMessage(e);
 
       setState(() {
         _isDownloading = false;
@@ -831,35 +573,23 @@ class _DownloadOptionsScreenState
         _status = '';
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          duration:
-              const Duration(seconds: 8),
-          content: Text(
-            'خطأ التحميل:\n$errorMessage',
-          ),
+          duration: const Duration(seconds: 8),
+          content: Text('خطأ التحميل:\n$errorMessage'),
         ),
       );
 
       _loadRewardedAd();
     } catch (e, stackTrace) {
-      debugPrint(
-        'DOWNLOAD ERROR: $e',
-      );
+      debugPrint('DOWNLOAD ERROR: $e');
+      debugPrint('DOWNLOAD STACK TRACE:\n$stackTrace');
 
-      debugPrint(
-        'DOWNLOAD STACK TRACE:\n$stackTrace',
-      );
-
-      await _cleanupTemporaryFile(
-        temporaryFile,
-      );
+      await _cleanupTemporaryFile(temporaryFile);
 
       if (!mounted) return;
 
-      final errorMessage =
-          _getUserFriendlyError(e);
+      final errorMessage = _getUserFriendlyError(e);
 
       setState(() {
         _isDownloading = false;
@@ -867,14 +597,10 @@ class _DownloadOptionsScreenState
         _status = '';
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          duration:
-              const Duration(seconds: 10),
-          content: Text(
-            'خطأ التحميل:\n$errorMessage',
-          ),
+          duration: const Duration(seconds: 10),
+          content: Text('خطأ التحميل:\n$errorMessage'),
         ),
       );
 
@@ -882,13 +608,7 @@ class _DownloadOptionsScreenState
     }
   }
 
-  // ============================================================
-  // تنظيف الملف المؤقت
-  // ============================================================
-
-  Future<void> _cleanupTemporaryFile(
-    File? file,
-  ) async {
+  Future<void> _cleanupTemporaryFile(File? file) async {
     if (file == null) return;
 
     try {
@@ -896,20 +616,12 @@ class _DownloadOptionsScreenState
         await file.delete();
       }
     } catch (e) {
-      debugPrint(
-        'CLEANUP ERROR: $e',
-      );
+      debugPrint('CLEANUP ERROR: $e');
     }
   }
 
-  // ============================================================
-  // الاختبار الحالي
-  // التحميل يبدأ مباشرة بدون الإعلان.
-  // ============================================================
-
   void _startFreeDownload() {
     if (_isDownloading) return;
-
     _startDownload();
   }
 
@@ -920,175 +632,88 @@ class _DownloadOptionsScreenState
     super.dispose();
   }
 
-  // ============================================================
-  // واجهة الشاشة
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
-    const orange =
-        Color(0xFFF28C28);
+    const orange = Color(0xFFF28C28);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'التحميل',
-        ),
+        title: const Text('التحميل'),
       ),
       body: Padding(
-        padding:
-            const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(
-              height: 30,
-            ),
-
+            const SizedBox(height: 30),
             const Icon(
               Icons.download_rounded,
               size: 80,
               color: orange,
             ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
+            const SizedBox(height: 20),
             Text(
               widget.book.title,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 22,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
-            const SizedBox(
-              height: 35,
-            ),
-
-            // --------------------------------------------------
-            // زر بدء التحميل
-            // --------------------------------------------------
-
-            if (!_isDownloading &&
-                !_downloadCompleted)
+            const SizedBox(height: 35),
+            if (!_isDownloading && !_downloadCompleted)
               ElevatedButton.icon(
-                onPressed:
-                    _startFreeDownload,
-                icon: const Icon(
-                  Icons.download_rounded,
-                ),
-                label: const Text(
-                  'بدء التحميل',
-                ),
-                style:
-                    ElevatedButton.styleFrom(
-                  backgroundColor:
-                      orange,
-                  foregroundColor:
-                      Colors.white,
-                  minimumSize:
-                      const Size.fromHeight(
-                    55,
-                  ),
+                onPressed: _startFreeDownload,
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('بدء التحميل'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: orange,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(55),
                 ),
               ),
-
-            // --------------------------------------------------
-            // حالة التحميل
-            // --------------------------------------------------
-
-            if (_isDownloading ||
-                _downloadCompleted) ...[
-              const SizedBox(
-                height: 10,
-              ),
-
+            if (_isDownloading || _downloadCompleted) ...[
+              const SizedBox(height: 10),
               Text(
                 _status,
-                textAlign:
-                    TextAlign.center,
-                style:
-                    TextStyle(
+                textAlign: TextAlign.center,
+                style: TextStyle(
                   fontSize: 18,
-                  fontWeight:
-                      FontWeight.bold,
-                  color:
-                      _downloadCompleted
-                          ? Colors.green
-                          : null,
+                  fontWeight: FontWeight.bold,
+                  color: _downloadCompleted ? Colors.green : null,
                 ),
               ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
+              const SizedBox(height: 20),
               LinearProgressIndicator(
                 value: _progress,
                 minHeight: 10,
-                borderRadius:
-                    BorderRadius.circular(
-                  10,
-                ),
+                borderRadius: BorderRadius.circular(10),
               ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
+              const SizedBox(height: 12),
               Text(
                 '${(_progress * 100).toInt()}%',
-                textAlign:
-                    TextAlign.center,
-                style:
-                    const TextStyle(
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 17,
-                  fontWeight:
-                      FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-
-              // ------------------------------------------------
-              // نجاح التحميل
-              // ------------------------------------------------
-
               if (_downloadCompleted) ...[
-                const SizedBox(
-                  height: 20,
-                ),
-
+                const SizedBox(height: 20),
                 const Icon(
                   Icons.check_circle,
                   size: 55,
                   color: Colors.green,
                 ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
+                const SizedBox(height: 10),
                 const Text(
                   'تم حفظ الملف في مجلد التنزيلات',
-                  textAlign:
-                      TextAlign.center,
-                  style:
-                      TextStyle(
-                    fontSize: 16,
-                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
                 ),
               ],
             ],
-
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
