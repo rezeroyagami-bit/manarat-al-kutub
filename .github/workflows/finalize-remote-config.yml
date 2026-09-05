@@ -1,0 +1,46 @@
+name: Finalize KITARA remote configuration
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch remote-controlled UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # app_shell.dart
+          p=Path('lib/screens/app_shell.dart')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("    const green = Color(0xFF2E7D32);\n    const orange = Color(0xFFF28C28);\n    final accent = exclusiveUnlocked ? orange : green;", "    final config = RemoteConfigStore.instance.config;\n    final accent = exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;")
+          s=s.replace('      destinations: const [', '      destinations: [', 1)
+          p.write_text(s, encoding='utf-8')
+
+          # kitara_status_bar.dart
+          p=Path('lib/widgets/kitara_status_bar.dart')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("import '../services/supabase_service.dart';", "import '../services/supabase_service.dart';\nimport '../services/remote_config.dart';")
+          s=s.replace("'للوصول إلى المحتوى الحصري والمدفوع أدخل الكود.'", "RemoteConfigStore.instance.config.freeActivationMessage")
+          s=s.replace("    const green = Color(0xFF2E7D32);\n    const orange = Color(0xFFF28C28);\n    final accent = widget.exclusiveUnlocked ? orange : green;", "    final config = RemoteConfigStore.instance.config;\n    final accent = widget.exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;")
+          s=s.replace("widget.exclusiveUnlocked ? 'المحتوى الحصري' : 'النسخة المجانية'", "widget.exclusiveUnlocked ? config.exclusiveStatusText : config.freeStatusText")
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit and remove workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/finalize-remote-config.yml
+          git add lib/screens/app_shell.dart lib/widgets/kitara_status_bar.dart .github/workflows/finalize-remote-config.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Complete remote controlled KITARA UI"
+          git push
