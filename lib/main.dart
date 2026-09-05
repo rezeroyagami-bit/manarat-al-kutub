@@ -149,6 +149,9 @@ class _KitaraAppState extends State<KitaraApp> {
     const orange = Color(0xFFF28C28);
     final accent = isExclusiveTheme ? orange : green;
     final dark = brightness == Brightness.dark;
+    final background = isExclusiveTheme
+        ? (dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7))
+        : (dark ? const Color(0xFF101810) : const Color(0xFFF7FBF7));
 
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
@@ -160,26 +163,27 @@ class _KitaraAppState extends State<KitaraApp> {
       fontFamily: 'Amiri',
       colorScheme: scheme,
       primaryColor: accent,
-      scaffoldBackgroundColor: dark ? const Color(0xFF121212) : Colors.white,
+      scaffoldBackgroundColor: background,
       appBarTheme: AppBarTheme(
-        backgroundColor: dark ? const Color(0xFF121212) : Colors.white,
-        foregroundColor: dark ? Colors.white : Colors.black87,
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       cardTheme: CardThemeData(
-        color: dark ? null : Colors.white,
-        surfaceTintColor: accent.withValues(alpha: 0.03),
-        elevation: 1,
+        color: dark ? const Color(0xFF1C241C) : Colors.white,
+        surfaceTintColor: accent.withValues(alpha: 0.04),
+        elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: accent.withValues(alpha: 0.12)),
+          side: BorderSide(color: accent.withValues(alpha: 0.18)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: dark ? const Color(0xFF1E1E1E) : Colors.white,
-        indicatorColor: accent.withValues(alpha: 0.14),
+        backgroundColor: dark ? const Color(0xFF172017) : Colors.white,
+        indicatorColor: accent.withValues(alpha: 0.16),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(
             fontFamily: 'Amiri',
@@ -213,13 +217,13 @@ class _KitaraAppState extends State<KitaraApp> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: accent.withValues(alpha: 0.20)),
+          borderSide: BorderSide(color: accent.withValues(alpha: 0.28)),
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
       chipTheme: ChipThemeData(
-        selectedColor: accent.withValues(alpha: 0.14),
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        selectedColor: accent.withValues(alpha: 0.16),
+        side: BorderSide(color: accent.withValues(alpha: 0.32)),
       ),
     );
   }
