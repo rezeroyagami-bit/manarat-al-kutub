@@ -131,7 +131,6 @@ async function querySupabase(path) {
 async function getBook(bookId) {
   if (!bookId || !/^[a-zA-Z0-9_-]+$/.test(bookId)) throw new Error('INVALID_BOOK_ID');
 
-  // Regular books.
   const books = await querySupabase(`books?id=eq.${encodeURIComponent(bookId)}&select=download_url,title`);
   if (books.ok && books.rows.length) {
     const url = mediaFireUrl(books.rows[0].download_url);
@@ -139,8 +138,6 @@ async function getBook(bookId) {
     return { url, title: books.rows[0].title || 'kitara_file' };
   }
 
-  // Magazine issues use a separate table and must follow the exact same
-  // download pipeline as regular books.
   const issues = await querySupabase(
     `magazine_issues?id=eq.${encodeURIComponent(bookId)}&select=download_url,title,issue_number`,
   );
@@ -148,8 +145,8 @@ async function getBook(bookId) {
     const row = issues.rows[0];
     const url = mediaFireUrl(row.download_url);
     if (!url) throw new Error('INVALID_MEDIAFIRE_URL');
-    finalTitle = row.title || `مجلة - العدد ${row.issue_number ?? ''}`;
-    return { url, title: finalTitle.trim() || 'kitara_magazine' };
+    const title = row.title || `مجلة - العدد ${row.issue_number ?? ''}`;
+    return { url, title: title.trim() || 'kitara_magazine' };
   }
 
   if (!books.ok && !issues.ok) throw new Error('DATABASE_ERROR');
@@ -159,7 +156,7 @@ async function getBook(bookId) {
 function sendError(res, error) {
   const code = error?.message || 'PROXY_ERROR';
   const messages = {
-    INVALID_BOOK_ID: 'معرّف الكتاب غير صالح.', BOOK_NOT_FOUND: 'الكتاب غير موجود.',
+    INVALID_BOOK_ID: 'معرّف المحتوى غير صالح.', BOOK_NOT_FOUND: 'المحتوى غير موجود.',
     INVALID_MEDIAFIRE_URL: 'رابط MediaFire غير صالح.', DATABASE_ERROR: 'تعذر الوصول إلى بيانات المحتوى.',
     DIRECT_LINK_NOT_FOUND: 'تعذر العثور على الملف الحقيقي في MediaFire.',
     MEDIAFIRE_DOWNLOAD_KEY_PENDING: 'MediaFire لم يجهز رابط التنزيل بعد.',
