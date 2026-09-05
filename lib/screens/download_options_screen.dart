@@ -27,7 +27,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   String _status = '';
 
   static const String _rewardedAdUnitId = 'ca-app-pub-6792981270949925/4708033165';
-  static const String _proxyBaseUrl = 'https://kitara-download-proxy-e93jxdctb-zero-2bfa.vercel.app';
+  static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
 
   final Dio _dio = Dio();
   final PublicFileSaver _fileSaver = PublicFileSaver();
@@ -293,7 +293,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   }
 
   void _startFreeDownload() {
-    if (!_isDownloading) _startDownload();
+    if (!_isDownloading) _showRewardedAd();
   }
 
   @override
