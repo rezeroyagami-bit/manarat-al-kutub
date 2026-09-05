@@ -26,7 +26,9 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   double _progress = 0.0;
   String _status = '';
 
-  static const String _rewardedAdUnitId = 'ca-app-pub-6792981270949925/4708033165';
+  // Google test Rewarded Ad Unit ID for development/testing.
+  // Before publishing KITARA, restore the production AdMob Rewarded Ad Unit ID.
+  static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
 
   final Dio _dio = Dio();
@@ -90,7 +92,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     final ad = _rewardedAd;
     if (ad == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الإعلان غير جاهز حاليًا. حاول مرة أخرى بعد قليل.')),
+        const SnackBar(content: Text('الإعلان التجريبي غير جاهز حاليًا. حاول مرة أخرى بعد قليل.')),
       );
       _loadRewardedAd();
       return;
