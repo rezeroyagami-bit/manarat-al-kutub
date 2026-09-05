@@ -279,7 +279,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final config = RemoteConfigStore.instance.config;
+    final green = config.freePrimaryColor;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -291,13 +292,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 Image.asset('assets/kitara_icon.png', width: 120, height: 120, fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const SizedBox(width: 120, height: 120, child: Icon(Icons.menu_book, size: 80, color: green))),
                 const SizedBox(height: 24),
-                const Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2)),
+                Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2)),
                 const SizedBox(height: 6),
-                const Text('كِتارا', style: TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700)),
+                Text(config.brandArabic, style: const TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 18),
-                const Text('رحلة الكتاب تبدأ بصفحة', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87)),
+                Text(config.introTitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87)),
                 const SizedBox(height: 10),
-                const Text('اقرأ • استكشف • استمتع', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 16, color: Colors.black54)),
+                Text(config.introSubtitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 16, color: Colors.black54)),
               ],
             ),
           ),
