@@ -17,6 +17,28 @@ class SupabaseService {
         .toList();
   }
 
+  Future<Map<String, String>> getAppSettings() async {
+    final response = await _client.from('app_settings').select('key,value');
+    final settings = <String, String>{};
+    for (final item in (response as List)) {
+      final row = item as Map<String, dynamic>;
+      final key = row['key']?.toString().trim();
+      final value = row['value']?.toString() ?? '';
+      if (key != null && key.isNotEmpty) settings[key] = value;
+    }
+    return settings;
+  }
+
+  Future<Map<String, String>> getMaintenanceSettings() async {
+    final all = await getAppSettings();
+    return {
+      'maintenance_mode': all['maintenance_mode'] ?? 'false',
+      'maintenance_allow_downloads': all['maintenance_allow_downloads'] ?? 'true',
+      'maintenance_title': all['maintenance_title'] ?? 'كِتارا قيد الصيانة',
+      'maintenance_message': all['maintenance_message'] ?? 'نعمل حاليًا على تحسين كِتارا وتحديث المحتوى. يرجى المحاولة لاحقًا.',
+    };
+  }
+
   Future<List<Map<String, dynamic>>> getLibrarySections() async {
     final response = await _client
         .from('library_sections')
@@ -95,26 +117,5 @@ class SupabaseService {
     return (response as List)
         .map((item) => item as Map<String, dynamic>)
         .toList();
-  }
-
-  Future<Map<String, String>> getMaintenanceSettings() async {
-    final response = await _client
-        .from('app_settings')
-        .select('key,value')
-        .inFilter('key', [
-          'maintenance_mode',
-          'maintenance_title',
-          'maintenance_message',
-          'maintenance_allow_downloads',
-        ]);
-
-    final settings = <String, String>{};
-    for (final item in (response as List)) {
-      final map = item as Map<String, dynamic>;
-      final key = map['key']?.toString();
-      final value = map['value']?.toString();
-      if (key != null && value != null) settings[key] = value;
-    }
-    return settings;
   }
 }
