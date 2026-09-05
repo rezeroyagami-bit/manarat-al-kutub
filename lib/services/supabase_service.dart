@@ -17,6 +17,18 @@ class SupabaseService {
         .toList();
   }
 
+  Future<List<Map<String, dynamic>>> getLibrarySections() async {
+    final response = await _client
+        .from('library_sections')
+        .select()
+        .eq('is_active', true)
+        .order('sort_order', ascending: true);
+
+    return (response as List)
+        .map((item) => item as Map<String, dynamic>)
+        .toList();
+  }
+
   Future<bool> validateKitaraActivationCode(String code) async {
     final response = await _client.rpc(
       'validate_kitara_activation_code',
