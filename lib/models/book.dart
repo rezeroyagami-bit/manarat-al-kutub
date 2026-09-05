@@ -7,6 +7,7 @@ class Book {
   final String? coverUrl;
   final String downloadUrl;
   final bool isMagazine;
+  final bool isExclusive;
 
   const Book({
     required this.id,
@@ -17,6 +18,7 @@ class Book {
     this.coverUrl,
     required this.downloadUrl,
     this.isMagazine = false,
+    this.isExclusive = false,
   });
 
   factory Book.fromMap(Map<String, dynamic> map) {
@@ -29,6 +31,7 @@ class Book {
       coverUrl: map['cover_url'] as String?,
       downloadUrl: map['download_url'] as String,
       isMagazine: map['is_magazine'] as bool? ?? false,
+      isExclusive: map['is_exclusive'] as bool? ?? false,
     );
   }
 }
