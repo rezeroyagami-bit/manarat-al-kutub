@@ -104,22 +104,36 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     final result = await OpenFilex.open(file.path, type: _mimeType(file.path));
     if (!mounted || result.type.name == 'done') return;
-    final message = result.type.name == 'noAppToOpen' ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.' : 'تعذر فتح الملف: ${result.message}';
+    final message = result.type.name == 'noAppToOpen'
+        ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.'
+        : 'تعذر فتح الملف: ${result.message}';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    final accent = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
         title: const Text('تنزيلاتي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: orange))
+          ? Center(child: CircularProgressIndicator(color: accent))
           : _downloads.isEmpty
-              ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.download_for_offline_outlined, size: 72, color: Colors.grey), SizedBox(height: 16), Text('لا توجد تنزيلات حتى الآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)), SizedBox(height: 8), Text('ستظهر الكتب والمجلات التي تنزلها هنا', style: TextStyle(color: Colors.grey))]))
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.download_for_offline_outlined, size: 72, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('لا توجد تنزيلات حتى الآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 8),
+                      Text('ستظهر الكتب والمجلات التي تنزلها هنا', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
               : RefreshIndicator(
+                  color: accent,
                   onRefresh: _loadDownloads,
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
@@ -135,16 +149,27 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                             width: 55,
                             height: 72,
                             child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                                ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded, size: 38)))
-                                : const Icon(Icons.menu_book_rounded, size: 40, color: orange),
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      item.coverUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Icon(Icons.menu_book_rounded, size: 38, color: accent),
+                                    ),
+                                  )
+                                : Icon(Icons.menu_book_rounded, size: 40, color: accent),
                           ),
                           title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(item.author, maxLines: 1, overflow: TextOverflow.ellipsis),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.open_in_new_rounded),
-                              IconButton(tooltip: 'حذف', icon: const Icon(Icons.delete_outline_rounded), onPressed: () => _delete(item)),
+                              Icon(Icons.open_in_new_rounded, color: accent),
+                              IconButton(
+                                tooltip: 'حذف',
+                                icon: const Icon(Icons.delete_outline_rounded),
+                                onPressed: () => _delete(item),
+                              ),
                             ],
                           ),
                         ),
