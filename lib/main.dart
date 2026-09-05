@@ -116,34 +116,105 @@ class _KitaraAppState extends State<KitaraApp> {
     const gold = Color(0xFFC89B3C);
     final accent = isExclusiveTheme ? gold : orange;
     final dark = brightness == Brightness.dark;
+    final exclusiveLight = isExclusiveTheme && !dark;
+    final exclusiveDark = isExclusiveTheme && dark;
+
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: brightness,
+    );
+
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Amiri',
-      colorScheme: ColorScheme.fromSeed(seedColor: accent, brightness: brightness),
-      scaffoldBackgroundColor: dark ? const Color(0xFF121212) : Colors.white,
+      colorScheme: scheme,
+      primaryColor: accent,
+      scaffoldBackgroundColor: exclusiveLight
+          ? const Color(0xFFFFFBF3)
+          : dark
+              ? const Color(0xFF121212)
+              : Colors.white,
       appBarTheme: AppBarTheme(
-        backgroundColor: dark ? const Color(0xFF121212) : Colors.white,
-        foregroundColor: dark ? Colors.white : Colors.black87,
-        elevation: 0,
+        backgroundColor: exclusiveLight
+            ? const Color(0xFFC89B3C)
+            : exclusiveDark
+                ? const Color(0xFF2A2418)
+                : dark
+                    ? const Color(0xFF121212)
+                    : Colors.white,
+        foregroundColor: exclusiveLight || exclusiveDark
+            ? Colors.white
+            : dark
+                ? Colors.white
+                : Colors.black87,
+        elevation: isExclusiveTheme ? 2 : 0,
         centerTitle: false,
+        surfaceTintColor: isExclusiveTheme ? gold : Colors.transparent,
+      ),
+      cardTheme: CardThemeData(
+        color: exclusiveLight ? Colors.white : null,
+        surfaceTintColor: exclusiveLight ? gold.withValues(alpha: 0.04) : null,
+        elevation: exclusiveLight ? 2 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isExclusiveTheme
+              ? BorderSide(color: gold.withValues(alpha: 0.28))
+              : BorderSide.none,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: dark ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: exclusiveLight
+            ? const Color(0xFFFFF8E8)
+            : exclusiveDark
+                ? const Color(0xFF211E18)
+                : dark
+                    ? const Color(0xFF1E1E1E)
+                    : Colors.white,
         indicatorColor: accent.withValues(alpha: 0.18),
-        labelTextStyle: WidgetStateProperty.all(const TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.w600)),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(
+            fontFamily: 'Amiri',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          return IconThemeData(color: states.contains(WidgetState.selected) ? accent : Colors.grey);
+          return IconThemeData(
+            color: states.contains(WidgetState.selected) ? accent : Colors.grey,
+          );
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.white,
-          elevation: 2,
+          elevation: isExclusiveTheme ? 3 : 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontFamily: 'Amiri', fontSize: 17, fontWeight: FontWeight.bold),
+          textStyle: const TextStyle(
+            fontFamily: 'Amiri',
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: accent, width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: isExclusiveTheme
+                ? gold.withValues(alpha: 0.35)
+                : Colors.black12,
+          ),
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
+      chipTheme: ChipThemeData(
+        selectedColor: accent.withValues(alpha: 0.18),
+        side: BorderSide(color: accent.withValues(alpha: 0.35)),
       ),
     );
   }
