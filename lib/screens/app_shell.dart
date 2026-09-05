@@ -146,6 +146,8 @@ class _LoadingScreen extends StatelessWidget {
           Container(width: 76, height: 76, decoration: BoxDecoration(color: orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: orange)),
           const SizedBox(height: 22),
           const Text('كِتارا', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 5),
+          const Text('الإصدار 1.0.0', style: TextStyle(fontSize: 14, color: Colors.grey)),
           const SizedBox(height: 14),
           const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: orange)),
           const SizedBox(height: 14),
