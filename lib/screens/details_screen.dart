@@ -89,8 +89,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
-    const orange = Color(0xFFF28C28);
-    final badgeColor = widget.book.isExclusive ? orange : accent;
 
     return Scaffold(
       appBar: AppBar(
@@ -99,7 +97,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           IconButton(
             tooltip: 'المفضلة',
             onPressed: _toggleFavorite,
-            icon: Icon(isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isFavorite ? Colors.red : Colors.white),
+            icon: Icon(isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: Colors.white),
           ),
         ],
       ),
@@ -115,21 +113,39 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   Center(
                     child: Container(
                       constraints: const BoxConstraints(maxWidth: 280, maxHeight: 390),
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), boxShadow: const [BoxShadow(blurRadius: 16, offset: Offset(0, 7), color: Colors.black26)]),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: const [BoxShadow(blurRadius: 16, offset: Offset(0, 7), color: Colors.black26)],
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
                         child: Image.network(
                           widget.book.coverUrl!,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Container(height: 300, width: 220, decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: badgeColor.withValues(alpha: 0.10)), child: Icon(Icons.menu_book_rounded, size: 90, color: badgeColor)),
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 300,
+                            width: 220,
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: accent.withValues(alpha: 0.10)),
+                            child: Icon(Icons.menu_book_rounded, size: 90, color: accent),
+                          ),
                         ),
                       ),
                     ),
                   )
                 else
-                  Center(child: Container(width: 220, height: 300, decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(18)), child: Icon(Icons.menu_book_rounded, size: 90, color: badgeColor))),
+                  Center(
+                    child: Container(
+                      width: 220,
+                      height: 300,
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(18)),
+                      child: Icon(Icons.menu_book_rounded, size: 90, color: accent),
+                    ),
+                  ),
                 if (widget.book.isExclusive)
-                  Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.workspace_premium_rounded, color: orange, size: 34)),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(Icons.workspace_premium_rounded, color: accent, size: 34),
+                  ),
               ],
             ),
             const SizedBox(height: 24),
@@ -140,13 +156,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                child: Text(widget.book.category, style: TextStyle(color: badgeColor, fontWeight: FontWeight.w600)),
+                decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                child: Text(widget.book.category, style: TextStyle(color: accent, fontWeight: FontWeight.w600)),
               ),
             ),
             if (widget.book.isExclusive) ...[
               const SizedBox(height: 14),
-              const Text('محتوى حصري', textAlign: TextAlign.center, style: TextStyle(color: orange, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('محتوى حصري', textAlign: TextAlign.center, style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 16)),
             ],
             const SizedBox(height: 24),
             const Text('عن المحتوى', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
