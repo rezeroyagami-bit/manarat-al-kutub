@@ -14,52 +14,128 @@ import '../widgets/kitara_status_bar.dart';
 class AppShell extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final bool isDarkMode;
-  final VoidCallback? onExclusiveActivated;
+  final Future<void> Function(String code)? onExclusiveActivated;
+  final Future<void> Function()? onExclusiveDeactivated;
 
   const AppShell({
     super.key,
     required this.onThemeToggle,
     required this.isDarkMode,
     this.onExclusiveActivated,
+    this.onExclusiveDeactivated,
   });
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final SupabaseService _supabaseService = SupabaseService();
   List<Book> books = [];
   bool loading = true;
   bool adBlockCheckComplete = false;
   bool adBlockDetected = false;
   bool exclusiveUnlocked = false;
+  bool _checkingActivation = false;
   String? errorMessage;
   int currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadExclusiveState();
     _loadBooksThenCheckAdBlocker();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _revalidateActivation();
+    }
   }
 
   Future<void> _loadExclusiveState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
+      final savedCode = prefs.getString('exclusive_activation_code');
+      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
+        if (!mounted) return;
+        setState(() => exclusiveUnlocked = false);
+        return;
+      }
+
+      try {
+        final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
+        if (!valid) {
+          await _clearExclusiveState();
+          return;
+        }
+      } catch (_) {
+        // Keep the current state during a temporary connection problem.
+      }
+
       if (!mounted) return;
-      setState(() => exclusiveUnlocked = prefs.getBool('exclusive_content_unlocked') ?? false);
+      setState(() => exclusiveUnlocked = true);
     } catch (_) {}
   }
 
-  Future<void> _activateExclusiveTheme() async {
+  Future<void> _revalidateActivation() async {
+    if (_checkingActivation) return;
+    _checkingActivation = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
+      final savedCode = prefs.getString('exclusive_activation_code');
+      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
+        if (mounted && exclusiveUnlocked) {
+          setState(() => exclusiveUnlocked = false);
+          await widget.onExclusiveDeactivated?.call();
+        }
+        return;
+      }
+
+      final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
+      if (!valid) {
+        await _clearExclusiveState();
+      } else if (mounted && !exclusiveUnlocked) {
+        setState(() => exclusiveUnlocked = true);
+        await widget.onExclusiveActivated?.call(savedCode);
+      }
+    } catch (_) {
+      // Do not remove a valid-looking activation during a temporary outage.
+    } finally {
+      _checkingActivation = false;
+    }
+  }
+
+  Future<void> _clearExclusiveState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('exclusive_content_unlocked', false);
+      await prefs.remove('exclusive_activation_code');
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => exclusiveUnlocked = false);
+    await widget.onExclusiveDeactivated?.call();
+  }
+
+  Future<void> _activateExclusiveTheme(String code) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('exclusive_content_unlocked', true);
+      await prefs.setString('exclusive_activation_code', code.trim());
     } catch (_) {}
     if (!mounted) return;
     setState(() => exclusiveUnlocked = true);
-    widget.onExclusiveActivated?.call();
+    await widget.onExclusiveActivated?.call(code.trim());
   }
 
   Future<void> _loadBooksThenCheckAdBlocker() async {
@@ -149,16 +225,16 @@ class _AppShellState extends State<AppShell> {
 
   Widget _buildNavigationBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    const green = Color(0xFF2E7D32);
     const orange = Color(0xFFF28C28);
-    const gold = Color(0xFFC89B3C);
-    final accent = exclusiveUnlocked ? gold : orange;
+    final accent = exclusiveUnlocked ? orange : green;
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       elevation: 8,
       shadowColor: Colors.black26,
-      indicatorColor: accent.withValues(alpha: 0.18),
+      indicatorColor: accent.withValues(alpha: 0.14),
       onDestinationSelected: (index) {
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
@@ -178,19 +254,19 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    const green = Color(0xFF2E7D32);
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(width: 76, height: 76, decoration: BoxDecoration(color: orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: orange)),
+            Container(width: 76, height: 76, decoration: BoxDecoration(color: green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: green)),
             const SizedBox(height: 22),
             const Text('كِتارا', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text('1.0.0', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w400)),
             const SizedBox(height: 14),
-            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: orange)),
+            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
             const SizedBox(height: 14),
             Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
           ],
@@ -207,13 +283,13 @@ class _ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    const green = Color(0xFF2E7D32);
     return Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(width: 90, height: 90, decoration: BoxDecoration(color: orange.withValues(alpha: 0.10), shape: BoxShape.circle), child: const Icon(Icons.cloud_off_rounded, size: 46, color: orange)),
+            Container(width: 90, height: 90, decoration: BoxDecoration(color: green.withValues(alpha: 0.10), shape: BoxShape.circle), child: const Icon(Icons.cloud_off_rounded, size: 46, color: green)),
             const SizedBox(height: 24),
             const Text('تعذر تحميل المحتوى', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
