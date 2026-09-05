@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/book.dart';
 import 'download_options_screen.dart';
 
 class DetailsScreen extends StatefulWidget {
