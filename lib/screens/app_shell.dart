@@ -161,10 +161,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       });
     } catch (_) {
       if (!mounted) return;
+      // The downloads screen is local and must remain available without internet.
+      // Keep any previously loaded books, skip the online ad-block check, and open
+      // the normal shell so the user can access downloaded files offline.
       setState(() {
         loading = false;
         adBlockCheckComplete = true;
-        errorMessage = 'تعذر تحميل المحتوى.\nتحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
+        adBlockDetected = false;
+        errorMessage = null;
       });
     }
   }
@@ -179,7 +183,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         loading = false;
-        errorMessage = 'تعذر تحميل المحتوى.\nتحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
+        errorMessage = null;
       });
     }
   }
@@ -234,7 +238,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
       },
-      destinations: [
+      destinations: const [
         NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white70), selectedIcon: Icon(Icons.home_rounded, color: Colors.white), label: 'الرئيسية'),
         NavigationDestination(icon: Icon(Icons.menu_book_outlined, color: Colors.white70), selectedIcon: Icon(Icons.menu_book_rounded, color: Colors.white), label: 'المكتبة'),
         NavigationDestination(icon: Icon(Icons.favorite_border_rounded, color: Colors.white70), selectedIcon: Icon(Icons.favorite_rounded, color: Colors.white), label: 'المفضلة'),
@@ -263,7 +267,7 @@ class _LoadingScreen extends StatelessWidget {
             const SizedBox(height: 14),
             const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
             const SizedBox(height: 14),
-            Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
+            Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey)),
           ],
         ),
       ),
