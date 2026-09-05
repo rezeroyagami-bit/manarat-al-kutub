@@ -4,7 +4,7 @@ import '../models/book.dart';
 import '../models/magazine_issue.dart';
 import '../services/favorites_service.dart';
 import '../services/supabase_service.dart';
-import 'download_options_screen.dart';
+import 'details_screen.dart';
 
 class MagazineScreen extends StatefulWidget {
   final String magazineId;
@@ -92,10 +92,11 @@ class _MagazineScreenState extends State<MagazineScreen> {
       coverUrl: issue.coverUrl,
       downloadUrl: issue.downloadUrl,
       isMagazine: true,
+      isExclusive: issue.isExclusive,
     );
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => DownloadOptionsScreen(book: book)),
+      MaterialPageRoute(builder: (_) => DetailsScreen(book: book)),
     );
   }
 
@@ -234,6 +235,16 @@ class _IssueCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (issue.isExclusive)
+                Positioned(
+                  left: 7,
+                  top: 7,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                    child: Icon(Icons.workspace_premium_rounded, size: 19, color: accent),
+                  ),
+                ),
               Positioned(
                 top: 7,
                 right: 7,
