@@ -45,8 +45,6 @@ class _AppShellState extends State<AppShell> {
     }
 
     try {
-      // First verify that KITARA itself can reach Supabase. This prevents
-      // weak/offline internet from being mistaken for an ad blocker.
       final result = await _supabaseService.getBooks();
       if (!mounted) return;
 
@@ -55,7 +53,6 @@ class _AppShellState extends State<AppShell> {
         loading = true;
       });
 
-      // Only test AdMob after the app backend has responded successfully.
       final blocked = await AdBlockDetector.isLikelyBlocked();
       if (!mounted) return;
 
@@ -92,9 +89,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     if (!adBlockCheckComplete || loading) return const _LoadingScreen();
-    if (adBlockDetected) {
-      return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
-    }
+    if (adBlockDetected) return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
     if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
 
     final screens = <Widget>[
@@ -142,17 +137,45 @@ class _LoadingScreen extends StatelessWidget {
     const orange = Color(0xFFF28C28);
     return Scaffold(
       body: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(width: 76, height: 76, decoration: BoxDecoration(color: orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: orange)),
-          const SizedBox(height: 22),
-          const Text('كِتارا', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 5),
-          const Text('الإصدار 1.0.0', style: TextStyle(fontSize: 14, color: Colors.grey)),
-          const SizedBox(height: 14),
-          const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: orange)),
-          const SizedBox(height: 14),
-          Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(Icons.menu_book_rounded, size: 38, color: orange),
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'كِتارا',
+              style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '1.0.0',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3, color: orange),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'جاري تجهيز مكتبتك...',
+              style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
       ),
     );
   }
