@@ -20,6 +20,9 @@ dependencies:
   public_file_saver: ^1.1.0
   open_filex: ^4.7.0
   device_info_plus: ^10.1.2
+  syncfusion_flutter_pdfviewer: ^33.2.6
+  docx_viewer: ^1.0.1
+  koni_archive: ^0.9.0
 
 dev_dependencies:
   flutter_test:
