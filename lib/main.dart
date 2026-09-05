@@ -13,9 +13,6 @@ Future<void> main() async {
   bool savedDarkMode = false;
   bool supabaseReady = false;
 
-  // ----------------------------------------------------------
-  // تهيئة Supabase
-  // ----------------------------------------------------------
   try {
     await Supabase.initialize(
       url: supabaseUrl,
@@ -26,18 +23,6 @@ Future<void> main() async {
     debugPrint('Supabase initialization error: $e');
   }
 
-  // ----------------------------------------------------------
-  // تهيئة AdMob قبل تشغيل واجهة التطبيق
-  // ----------------------------------------------------------
-  try {
-    await MobileAds.instance.initialize();
-  } catch (e) {
-    debugPrint('AdMob initialization error: $e');
-  }
-
-  // ----------------------------------------------------------
-  // قراءة الوضع الليلي
-  // ----------------------------------------------------------
   try {
     final prefs = await SharedPreferences.getInstance();
     savedDarkMode = prefs.getBool('dark_mode') ?? false;
@@ -45,12 +30,24 @@ Future<void> main() async {
     debugPrint('SharedPreferences error: $e');
   }
 
+  // تشغيل الواجهة أولًا حتى لا يؤدي فشل/تأخر AdMob إلى إغلاق التطبيق.
   runApp(
     KitaraApp(
       initialDarkMode: savedDarkMode,
       supabaseReady: supabaseReady,
     ),
   );
+
+  // تهيئة AdMob في الخلفية بعد بدء التطبيق.
+  _initializeAdsSafely();
+}
+
+Future<void> _initializeAdsSafely() async {
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e) {
+    debugPrint('AdMob initialization error: $e');
+  }
 }
 
 class KitaraApp extends StatefulWidget {
