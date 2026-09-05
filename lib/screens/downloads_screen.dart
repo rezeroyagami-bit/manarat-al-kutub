@@ -43,6 +43,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     if (lower.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
     if (lower.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
     if (lower.endsWith('.epub')) return 'application/epub+zip';
+    if (lower.endsWith('.doc')) return 'application/msword';
+    if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     if (lower.endsWith('.zip')) return 'application/zip';
     if (lower.endsWith('.rar')) return 'application/vnd.rar';
     return 'application/octet-stream';
