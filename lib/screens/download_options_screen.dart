@@ -26,7 +26,6 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   double _progress = 0.0;
   String _status = '';
 
-  // Google official test Rewarded Ad. Replace with the real unit before release.
   static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
 
@@ -43,7 +42,6 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
 
   Future<void> _prepareRewardedAd() async {
     try {
-      // Make sure the native AdMob SDK is initialized before requesting the ad.
       await MobileAds.instance.initialize();
     } catch (e) {
       debugPrint('AdMob initialization error: $e');
@@ -103,13 +101,9 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     if (_isDownloading) return;
 
     if (_rewardedAd == null) {
-      if (mounted) {
-        setState(() => _status = 'جاري تجهيز الإعلان التجريبي...');
-      }
+      if (mounted) setState(() => _status = 'جاري تجهيز الإعلان التجريبي...');
       _loadRewardedAd();
 
-      // Give the test ad a short time to become ready instead of immediately
-      // telling the user that it is unavailable.
       for (var i = 0; i < 20; i++) {
         if (_rewardedAd != null || !mounted) break;
         await Future.delayed(const Duration(milliseconds: 500));
@@ -140,18 +134,42 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     });
   }
 
-  String _sanitizeTitle(String value) {
+  String _sanitizeFileName(String value) {
     final cleaned = value.replaceAll(RegExp(r'''[\\/:*?"<>|]'''), '_').trim();
     return cleaned.isEmpty ? 'kitara_file' : cleaned;
   }
 
-  String _createFileName() {
-    final title = _sanitizeTitle(widget.book.title);
-    final lower = title.toLowerCase();
-    if (lower.endsWith('.pdf') || lower.endsWith('.cbr') || lower.endsWith('.cbz') || lower.endsWith('.epub') || lower.endsWith('.zip') || lower.endsWith('.rar')) {
-      return title;
+  String? _fileNameFromContentDisposition(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final utf = RegExp(r"filename\*=UTF-8''([^;]+)", caseSensitive: false).firstMatch(value);
+    if (utf != null) {
+      try {
+        final decoded = Uri.decodeComponent(utf.group(1)!.replaceAll('"', '').trim());
+        if (decoded.isNotEmpty) return _sanitizeFileName(decoded);
+      } catch (_) {}
     }
-    return widget.book.isMagazine ? '$title.pdf' : '$title.cbr';
+    final normal = RegExp(r'filename\s*=\s*"([^"]+)"', caseSensitive: false).firstMatch(value) ??
+        RegExp(r'filename\s*=\s*([^;]+)', caseSensitive: false).firstMatch(value);
+    if (normal != null) {
+      final name = normal.group(1)!.trim().replaceAll('"', '');
+      if (name.isNotEmpty) return _sanitizeFileName(name);
+    }
+    return null;
+  }
+
+  String _extensionFromContentType(String contentType, List<int> header) {
+    final type = contentType.toLowerCase();
+    if (type.contains('pdf') || _startsWith(header, [0x25, 0x50, 0x44, 0x46])) return '.pdf';
+    if (type.contains('epub')) return '.epub';
+    if (type.contains('zip') || _startsWith(header, [0x50, 0x4B, 0x03, 0x04])) return '.zip';
+    if (type.contains('rar') || _startsWith(header, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07])) return '.rar';
+    return '';
+  }
+
+  String _fallbackFileName(String contentType, List<int> header) {
+    final title = _sanitizeFileName(widget.book.title);
+    final extension = _extensionFromContentType(contentType, header);
+    return title.toLowerCase().endsWith(extension) || extension.isEmpty ? title : '$title$extension';
   }
 
   String _getMimeType(String fileName) {
@@ -216,8 +234,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     try {
       final proxyUrl = '$_proxyBaseUrl/download/${Uri.encodeComponent(widget.book.id)}';
       final temporaryDirectory = await getTemporaryDirectory();
-      final fileName = _createFileName();
-      final temporaryPath = '${temporaryDirectory.path}/$fileName';
+      final temporaryPath = '${temporaryDirectory.path}/kitara_download.tmp';
       temporaryFile = File(temporaryPath);
       if (await temporaryFile.exists()) await temporaryFile.delete();
 
@@ -253,6 +270,16 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
 
       if (fileLength < 1024 || !_isValidBookFile(contentType, header)) {
         throw Exception(_friendlyProxyError(response));
+      }
+
+      final fileName = _fileNameFromContentDisposition(
+            response.headers.value(Headers.contentDispositionHeader),
+          ) ??
+          _fallbackFileName(contentType, header);
+      final finalPath = '${temporaryDirectory.path}/$fileName';
+      if (finalPath != temporaryFile.path) {
+        final renamed = await temporaryFile.rename(finalPath);
+        temporaryFile = renamed;
       }
 
       if (mounted) setState(() => _status = 'جاري حفظ الملف في التنزيلات...');

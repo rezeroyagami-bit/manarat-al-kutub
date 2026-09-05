@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+
 import '../services/downloads_service.dart';
 
 class DownloadsScreen extends StatefulWidget {
@@ -35,6 +37,37 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     await _loadDownloads();
   }
 
+  String _mimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.cbr')) return 'application/vnd.comicbook-rar';
+    if (lower.endsWith('.cbz')) return 'application/vnd.comicbook+zip';
+    if (lower.endsWith('.epub')) return 'application/epub+zip';
+    if (lower.endsWith('.zip')) return 'application/zip';
+    if (lower.endsWith('.rar')) return 'application/vnd.rar';
+    return 'application/octet-stream';
+  }
+
+  Future<void> _openDownload(DownloadedBook download) async {
+    final file = File(download.filePath);
+    if (!await file.exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الملف لم يعد موجودًا على الجهاز.')),
+      );
+      await _loadDownloads();
+      return;
+    }
+
+    final result = await OpenFilex.open(file.path, type: _mimeType(file.path));
+    if (!mounted || result.type.name == 'done') return;
+
+    final message = result.type.name == 'noAppToOpen'
+        ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.'
+        : 'تعذر فتح الملف: ${result.message}';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     const orange = Color(0xFFF28C28);
@@ -65,6 +98,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       final item = _downloads[index];
                       return Card(
                         child: ListTile(
+                          onTap: () => _openDownload(item),
                           contentPadding: const EdgeInsets.all(10),
                           leading: SizedBox(
                             width: 55,
@@ -78,10 +112,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           ),
                           title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(item.author, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: IconButton(
-                            tooltip: 'حذف',
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            onPressed: () => _delete(item),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.open_in_new_rounded),
+                              IconButton(
+                                tooltip: 'حذف',
+                                icon: const Icon(Icons.delete_outline_rounded),
+                                onPressed: () => _delete(item),
+                              ),
+                            ],
                           ),
                         ),
                       );
