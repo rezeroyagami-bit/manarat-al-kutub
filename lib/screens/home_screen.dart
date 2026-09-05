@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final results = filteredBooks;
     final books = results.where((book) => !book.isMagazine).toList();
-    final magazines = results.where((book) => book.isMagazine).toList();
+    final magazines = results.where((book) => book.isMagazine && !book.title.contains(' — العدد')).toList();
 
     return Scaffold(
       appBar: AppBar(
