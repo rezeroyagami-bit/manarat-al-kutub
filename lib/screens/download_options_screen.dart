@@ -8,6 +8,7 @@ import 'package:public_file_saver/public_file_saver.dart';
 
 import '../models/book.dart';
 import '../services/ad_block_detector.dart';
+import '../services/coins_service.dart';
 import '../services/downloads_service.dart';
 
 class DownloadOptionsScreen extends StatefulWidget {
@@ -103,11 +104,8 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('🚫 تم اكتشاف مانع الإعلانات'),
-        content: const Text(
-          'لا يمكن تحميل الملفات أثناء استخدام مانع الإعلانات.\n\n'
-          'للمواصلة، يرجى تعطيل مانع الإعلانات ثم إعادة المحاولة.',
-        ),
+        title: const Text('تم اكتشاف مانع الإعلانات'),
+        content: const Text('لا يمكن تحميل الملفات أثناء استخدام مانع الإعلانات.\n\nللمواصلة، يرجى تعطيل مانع الإعلانات ثم إعادة المحاولة.'),
         actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('حسنًا'))],
       ),
     );
@@ -200,7 +198,6 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       final header = await _readHeader(temporaryFile);
       if (fileLength < 1024 || !_isValidBookFile(contentType, header)) throw Exception(_friendlyProxyError(response));
 
-      // Always use the title shown in KITARA, while keeping the detected file extension.
       final fileName = _downloadFileName(contentType, header);
       final finalPath = '${temporaryDirectory.path}/$fileName';
       if (finalPath != temporaryFile.path) temporaryFile = await temporaryFile.rename(finalPath);
@@ -208,10 +205,12 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       final savedFile = await _fileSaver.saveFile(file: temporaryFile, fileName: fileName, mimeType: _getMimeType(fileName));
       if (savedFile == null || !savedFile.isSuccess) throw Exception('PUBLIC_SAVE_FAILED');
       await _downloadsService.copyToAppDownloads(source: temporaryFile, book: widget.book, fileName: fileName);
+      final newCoinBalance = await CoinsService().awardDownloadCoin();
       try { await temporaryFile.delete(); } catch (_) {}
       if (mounted) {
         setState(() { _progress = 1.0; _isDownloading = false; _downloadCompleted = true; _status = 'اكتمل التحميل'; });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.')));
+        final coinText = newCoinBalance == null ? 'تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.' : 'تم التحميل بنجاح. حصلت على كوين واحد. رصيدك: $newCoinBalance';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(coinText)));
       }
       _loadRewardedAd();
     } on DioException catch (e) {
