@@ -1,0 +1,64 @@
+name: KITARA remote config force final
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch and force publish
+        shell: bash
+        run: |
+          set -e
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('lib/screens/app_shell.dart')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("    const green = Color(0xFF2E7D32);\n    const orange = Color(0xFFF28C28);\n    final accent = exclusiveUnlocked ? orange : green;", "    final config = RemoteConfigStore.instance.config;\n    final accent = exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;")
+          s=s.replace('      destinations: const [', '      destinations: [', 1)
+          p.write_text(s, encoding='utf-8')
+
+          p=Path('lib/widgets/kitara_status_bar.dart')
+          s=p.read_text(encoding='utf-8')
+          if "import '../services/remote_config.dart';" not in s:
+              s=s.replace("import '../services/supabase_service.dart';", "import '../services/supabase_service.dart';\nimport '../services/remote_config.dart';")
+          s=s.replace("'للوصول إلى المحتوى الحصري والمدفوع أدخل الكود.'", "RemoteConfigStore.instance.config.freeActivationMessage")
+          s=s.replace("    const green = Color(0xFF2E7D32);\n    const orange = Color(0xFFF28C28);\n    final accent = widget.exclusiveUnlocked ? orange : green;", "    final config = RemoteConfigStore.instance.config;\n    final accent = widget.exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;")
+          s=s.replace("widget.exclusiveUnlocked ? 'المحتوى الحصري' : 'النسخة المجانية'", "widget.exclusiveUnlocked ? config.exclusiveStatusText : config.freeStatusText")
+          p.write_text(s, encoding='utf-8')
+
+          p=Path('lib/screens/home_screen.dart')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("_NewsTicker(items: _newsItems, accent: accent)", "_NewsTicker(items: _newsItems, accent: config.newsColor)")
+          s=s.replace("decoration: BoxDecoration(color: const Color(0xFFC62828), borderRadius: BorderRadius.circular(7))", "decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(7))")
+          p.write_text(s, encoding='utf-8')
+
+          p=Path('lib/main.dart')
+          s=p.read_text(encoding='utf-8')
+          old="    const green = Color(0xFF2E7D32);\n    return Scaffold(\n      backgroundColor: Colors.white,"
+          if old in s:
+              s=s.replace(old, "    final config = RemoteConfigStore.instance.config;\n    final green = config.freePrimaryColor;\n    return Scaffold(\n      backgroundColor: Colors.white,", 1)
+          s=s.replace("const Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2))", "Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2))")
+          s=s.replace("const Text('كِتارا', style: TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700))", "Text(config.brandArabic, style: const TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700))")
+          s=s.replace("const Text('رحلة الكتاب تبدأ بصفحة', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87))", "Text(config.introTitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87))")
+          s=s.replace("const Text('اقرأ • استكشف • استمتع', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 16, color: Colors.black54))", "Text(config.introSubtitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 16, color: Colors.black54))")
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-old-magazine-issues.yml .github/workflows/apply-remote-config.yml .github/workflows/fix-remote-config-build.yml .github/workflows/finalize-remote-config.yml .github/workflows/remote-config-finalize.yml .github/workflows/remote-config-sections.yml .github/workflows/remote-config-force-final.yml
+          git add lib/main.dart lib/screens/app_shell.dart lib/screens/home_screen.dart lib/widgets/kitara_status_bar.dart lib/services/remote_config.dart .github/workflows
+          git diff --cached --quiet && exit 0
+          git commit -m "Finalize KITARA remote settings"
+          git push --force origin HEAD:main
