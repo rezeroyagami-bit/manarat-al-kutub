@@ -97,7 +97,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تنزيلاتي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-        actions: [IconButton(onPressed: _loadDownloads, icon: const Icon(Icons.refresh_rounded))],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: orange))
