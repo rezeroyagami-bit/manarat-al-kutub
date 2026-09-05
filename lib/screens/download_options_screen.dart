@@ -26,8 +26,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   double _progress = 0.0;
   String _status = '';
 
-  // Google test Rewarded Ad Unit ID for development/testing.
-  // Before publishing KITARA, restore the production AdMob Rewarded Ad Unit ID.
+  // Google official test Rewarded Ad. Replace with the real unit before release.
   static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
 
@@ -39,12 +38,25 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   @override
   void initState() {
     super.initState();
+    _prepareRewardedAd();
+  }
+
+  Future<void> _prepareRewardedAd() async {
+    try {
+      // Make sure the native AdMob SDK is initialized before requesting the ad.
+      await MobileAds.instance.initialize();
+    } catch (e) {
+      debugPrint('AdMob initialization error: $e');
+    }
+    if (!mounted) return;
     _loadRewardedAd();
   }
 
   void _loadRewardedAd() {
-    if (_isLoadingAd) return;
+    if (_isLoadingAd || _rewardedAd != null) return;
     _isLoadingAd = true;
+    if (mounted) setState(() {});
+
     RewardedAd.load(
       adUnitId: _rewardedAdUnitId,
       request: const AdRequest(),
@@ -70,7 +82,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
               _loadRewardedAd();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تعذر تشغيل الإعلان. حاول مرة أخرى.')),
+                  const SnackBar(content: Text('تعذر تشغيل الإعلان التجريبي. حاول مرة أخرى.')),
                 );
               }
             },
@@ -80,23 +92,47 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
         onAdFailedToLoad: (error) {
           _rewardedAd = null;
           _isLoadingAd = false;
-          debugPrint('REWARDED AD LOAD ERROR: ${error.message}');
+          debugPrint('REWARDED AD LOAD ERROR: ${error.code} ${error.message}');
           if (mounted) setState(() {});
         },
       ),
     );
   }
 
-  void _showRewardedAd() {
+  Future<void> _showRewardedAd() async {
     if (_isDownloading) return;
-    final ad = _rewardedAd;
-    if (ad == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الإعلان التجريبي غير جاهز حاليًا. حاول مرة أخرى بعد قليل.')),
-      );
+
+    if (_rewardedAd == null) {
+      if (mounted) {
+        setState(() => _status = 'جاري تجهيز الإعلان التجريبي...');
+      }
       _loadRewardedAd();
-      return;
+
+      // Give the test ad a short time to become ready instead of immediately
+      // telling the user that it is unavailable.
+      for (var i = 0; i < 20; i++) {
+        if (_rewardedAd != null || !mounted) break;
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      if (!mounted) return;
+      if (_rewardedAd == null) {
+        setState(() => _status = '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text('الإعلان التجريبي لم يجهز بعد. تحقق من الإنترنت وحاول مرة أخرى.'),
+          ),
+        );
+        _loadRewardedAd();
+        return;
+      }
+      setState(() => _status = '');
     }
+
+    final ad = _rewardedAd;
+    if (ad == null) return;
+
     _rewardedAd = null;
     _earnedReward = false;
     ad.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
@@ -205,9 +241,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
           maxRedirects: 10,
           receiveTimeout: const Duration(minutes: 15),
           sendTimeout: const Duration(minutes: 2),
-          headers: const {
-            'Accept': '*/*',
-          },
+          headers: const {'Accept': '*/*'},
           validateStatus: (status) => status != null && status >= 200 && status < 400,
         ),
       );
@@ -327,8 +361,14 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
             if (!_isDownloading && !_downloadCompleted)
               ElevatedButton.icon(
                 onPressed: _startFreeDownload,
-                icon: const Icon(Icons.download_rounded),
-                label: const Text('بدء التحميل'),
+                icon: _isLoadingAd
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: orange,
                   foregroundColor: Colors.white,
