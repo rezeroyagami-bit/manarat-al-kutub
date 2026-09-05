@@ -3,9 +3,6 @@ import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Detects strong signs that AdMob traffic is being blocked.
-///
-/// A single ad failure is never treated as an ad blocker because ads can fail
-/// for normal reasons (no fill, temporary network problems, etc.).
 class AdBlockDetector {
   static const String _testRewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
@@ -20,11 +17,16 @@ class AdBlockDetector {
     final results = await Future.wait([
       _probeRewardedAd(),
       _probeRewardedAd(),
+      _probeRewardedAd(),
     ]);
 
-    // Require two independent AdMob network failures. No-fill and other
-    // normal AdMob errors must never block access to KITARA.
-    return results.every((result) => result == _ProbeResult.networkError);
+    // If two or more independent probes report an AdMob network failure,
+    // treat it as an ad blocker. This is more reliable than requiring every
+    // probe to fail, while still avoiding a block from one transient failure.
+    final networkFailures = results
+        .where((result) => result == _ProbeResult.networkError)
+        .length;
+    return networkFailures >= 2;
   }
 
   static Future<_ProbeResult> _probeRewardedAd() async {
@@ -46,7 +48,6 @@ class AdBlockDetector {
           complete(_ProbeResult.loaded);
         },
         onAdFailedToLoad: (error) {
-          // AdMob error code 2 = network error.
           if (error.code == 2) {
             complete(_ProbeResult.networkError);
           } else {
