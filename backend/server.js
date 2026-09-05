@@ -119,27 +119,54 @@ async function resolveMediaFire(url) {
   throw new Error('MEDIAFIRE_RESOLUTION_TIMEOUT');
 }
 
+async function querySupabase(path) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!response.ok) return { ok: false, rows: [] };
+  const rows = await response.json();
+  return { ok: true, rows: Array.isArray(rows) ? rows : [] };
+}
+
 async function getBook(bookId) {
   if (!bookId || !/^[a-zA-Z0-9_-]+$/.test(bookId)) throw new Error('INVALID_BOOK_ID');
-  const endpoint = `${SUPABASE_URL}/rest/v1/books?id=eq.${encodeURIComponent(bookId)}&select=download_url,title`;
-  const response = await fetch(endpoint, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
-  if (!response.ok) throw new Error('DATABASE_ERROR');
-  const rows = await response.json();
-  if (!Array.isArray(rows) || !rows.length) throw new Error('BOOK_NOT_FOUND');
-  const url = mediaFireUrl(rows[0].download_url);
-  if (!url) throw new Error('INVALID_MEDIAFIRE_URL');
-  return { url, title: rows[0].title || 'kitara_file' };
+
+  // Regular books.
+  const books = await querySupabase(`books?id=eq.${encodeURIComponent(bookId)}&select=download_url,title`);
+  if (books.ok && books.rows.length) {
+    const url = mediaFireUrl(books.rows[0].download_url);
+    if (!url) throw new Error('INVALID_MEDIAFIRE_URL');
+    return { url, title: books.rows[0].title || 'kitara_file' };
+  }
+
+  // Magazine issues use a separate table and must follow the exact same
+  // download pipeline as regular books.
+  const issues = await querySupabase(
+    `magazine_issues?id=eq.${encodeURIComponent(bookId)}&select=download_url,title,issue_number`,
+  );
+  if (issues.ok && issues.rows.length) {
+    const row = issues.rows[0];
+    const url = mediaFireUrl(row.download_url);
+    if (!url) throw new Error('INVALID_MEDIAFIRE_URL');
+    finalTitle = row.title || `مجلة - العدد ${row.issue_number ?? ''}`;
+    return { url, title: finalTitle.trim() || 'kitara_magazine' };
+  }
+
+  if (!books.ok && !issues.ok) throw new Error('DATABASE_ERROR');
+  throw new Error('BOOK_NOT_FOUND');
 }
 
 function sendError(res, error) {
   const code = error?.message || 'PROXY_ERROR';
   const messages = {
     INVALID_BOOK_ID: 'معرّف الكتاب غير صالح.', BOOK_NOT_FOUND: 'الكتاب غير موجود.',
-    INVALID_MEDIAFIRE_URL: 'رابط MediaFire غير صالح.', DATABASE_ERROR: 'تعذر الوصول إلى بيانات الكتاب.',
+    INVALID_MEDIAFIRE_URL: 'رابط MediaFire غير صالح.', DATABASE_ERROR: 'تعذر الوصول إلى بيانات المحتوى.',
     DIRECT_LINK_NOT_FOUND: 'تعذر العثور على الملف الحقيقي في MediaFire.',
     MEDIAFIRE_DOWNLOAD_KEY_PENDING: 'MediaFire لم يجهز رابط التنزيل بعد.',
     MEDIAFIRE_VERIFICATION_REQUIRED: 'MediaFire طلب التحقق قبل التنزيل.',
     MEDIAFIRE_RESOLUTION_TIMEOUT: 'انتهت مهلة استخراج رابط الملف.',
+    INVALID_UPSTREAM_RESPONSE: 'الخادم أعاد صفحة غير صالحة بدل الملف.',
+    EMPTY_UPSTREAM_BODY: 'الملف فارغ.',
   };
   res.status(502).json({ success: false, code, error: messages[code] || 'تعذر تنزيل الملف.' });
 }
