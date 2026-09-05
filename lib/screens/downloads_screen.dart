@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../services/downloads_service.dart';
+import 'internal_reader_screen.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({super.key});
@@ -77,6 +78,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     return 'application/octet-stream';
   }
 
+  bool _isInternalFormat(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx') || lower.endsWith('.cbr');
+  }
+
   Future<void> _openDownload(DownloadedBook download) async {
     final file = File(download.filePath);
     if (!await file.exists()) {
@@ -85,6 +91,17 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       await _loadDownloads();
       return;
     }
+
+    if (_isInternalFormat(file.path)) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InternalReaderScreen(filePath: file.path, title: download.title),
+        ),
+      );
+      return;
+    }
+
     final result = await OpenFilex.open(file.path, type: _mimeType(file.path));
     if (!mounted || result.type.name == 'done') return;
     final message = result.type.name == 'noAppToOpen' ? 'لا يوجد تطبيق على الهاتف لفتح هذا النوع من الملفات.' : 'تعذر فتح الملف: ${result.message}';
