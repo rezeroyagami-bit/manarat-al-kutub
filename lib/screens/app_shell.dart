@@ -205,7 +205,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: const EdgeInsets.fromLTRB(12, 20, 12, 7),
             child: Align(
               alignment: Alignment.centerRight,
               child: KitaraStatusBar(
