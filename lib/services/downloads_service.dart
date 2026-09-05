@@ -36,6 +36,9 @@ class DownloadedBook {
 class DownloadsService {
   static const _prefsKey = 'kitara_downloaded_books';
 
+  // Notifies any open DownloadsScreen immediately when the list changes.
+  static final downloadsChanged = ValueNotifier<int>(0);
+
   Future<Directory> _downloadsDirectory() async {
     final root = await getApplicationDocumentsDirectory();
     final directory = Directory('${root.path}/kitara_downloads');
@@ -69,6 +72,7 @@ class DownloadsService {
     filtered.add(DownloadedBook(bookId: book.id, title: book.title, author: book.author, coverUrl: book.coverUrl, filePath: saved.path, downloadedAt: DateTime.now()));
     filtered.sort((a, b) => b.downloadedAt.compareTo(a.downloadedAt));
     await _save(filtered);
+    downloadsChanged.value++;
     return saved.path;
   }
 
@@ -77,6 +81,7 @@ class DownloadsService {
     final current = await getDownloads();
     current.removeWhere((item) => item.filePath == download.filePath);
     await _save(current);
+    downloadsChanged.value++;
   }
 
   Future<void> _save(List<DownloadedBook> downloads) async {
