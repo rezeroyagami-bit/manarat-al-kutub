@@ -74,10 +74,8 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
 
   Future<void> _showRewardedAd() async {
     if (_isDownloading) return;
-
     final blocked = await AdBlockDetector.isLikelyBlocked();
     if (blocked) { _showAdBlockMessage(); return; }
-
     if (_rewardedAd == null) {
       if (mounted) setState(() => _status = 'جاري تجهيز الإعلان...');
       _loadRewardedAd();
@@ -94,7 +92,6 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       }
       setState(() => _status = '');
     }
-
     final ad = _rewardedAd;
     if (ad == null) return;
     _rewardedAd = null; _earnedReward = false;
@@ -119,17 +116,6 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   String _sanitizeFileName(String value) {
     final cleaned = value.replaceAll(RegExp(r'''[\\/:*?"<>|]'''), '_').trim();
     return cleaned.isEmpty ? 'kitara_file' : cleaned;
-  }
-
-  String? _fileNameFromContentDisposition(String? value) {
-    if (value == null || value.isEmpty) return null;
-    final utf = RegExp(r"filename\*=UTF-8''([^;]+)", caseSensitive: false).firstMatch(value);
-    if (utf != null) { try { final decoded = Uri.decodeComponent(utf.group(1)!.replaceAll('"', '').trim()); if (decoded.isNotEmpty) return _sanitizeFileName(decoded); } catch (_) {} }
-    final quoted = RegExp(r'filename\s*=\s*"([^"]+)"', caseSensitive: false).firstMatch(value);
-    if (quoted != null) return _sanitizeFileName(quoted.group(1)!.trim());
-    final normal = RegExp(r'filename\s*=\s*([^;]+)', caseSensitive: false).firstMatch(value);
-    if (normal != null) return _sanitizeFileName(normal.group(1)!.trim().replaceAll('"', ''));
-    return null;
   }
 
   Future<List<int>> _readHeader(File file) async {
@@ -165,8 +151,9 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     return '';
   }
 
-  String _fallbackFileName(String contentType, List<int> header) {
-    final title = _sanitizeFileName(widget.book.title); final extension = _extensionFromContentType(contentType, header);
+  String _downloadFileName(String contentType, List<int> header) {
+    final title = _sanitizeFileName(widget.book.title);
+    final extension = _extensionFromContentType(contentType, header);
     if (extension.isEmpty || title.toLowerCase().endsWith(extension)) return title;
     return '$title$extension';
   }
@@ -208,9 +195,13 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
         },
         options: Options(responseType: ResponseType.bytes, followRedirects: true, maxRedirects: 10, receiveTimeout: const Duration(minutes: 15), sendTimeout: const Duration(minutes: 2), headers: const {'Accept': '*/*'}, validateStatus: (status) => status != null && status >= 200 && status < 400));
       if (!await temporaryFile.exists()) throw Exception('TEMP_FILE_NOT_FOUND');
-      final fileLength = await temporaryFile.length(); final contentType = response.headers.value('content-type') ?? ''; final contentDisposition = response.headers.value('content-disposition'); final header = await _readHeader(temporaryFile);
+      final fileLength = await temporaryFile.length();
+      final contentType = response.headers.value('content-type') ?? '';
+      final header = await _readHeader(temporaryFile);
       if (fileLength < 1024 || !_isValidBookFile(contentType, header)) throw Exception(_friendlyProxyError(response));
-      final fileName = _fileNameFromContentDisposition(contentDisposition) ?? _fallbackFileName(contentType, header);
+
+      // Always use the title shown in KITARA, while keeping the detected file extension.
+      final fileName = _downloadFileName(contentType, header);
       final finalPath = '${temporaryDirectory.path}/$fileName';
       if (finalPath != temporaryFile.path) temporaryFile = await temporaryFile.rename(finalPath);
       if (mounted) setState(() => _status = 'جاري حفظ الملف في التنزيلات...');
