@@ -24,7 +24,18 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
   @override
   void initState() {
     super.initState();
+    CoinsService.balance.addListener(_onCoinsChanged);
     _loadCoins();
+  }
+
+  @override
+  void dispose() {
+    CoinsService.balance.removeListener(_onCoinsChanged);
+    super.dispose();
+  }
+
+  void _onCoinsChanged() {
+    if (mounted) setState(() => _coins = CoinsService.balance.value);
   }
 
   Future<void> _loadCoins() async {
