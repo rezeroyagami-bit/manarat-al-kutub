@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/supabase_config.dart';
+import 'services/supabase_service.dart';
 import 'screens/app_shell.dart';
 
 Future<void> main() async {
@@ -24,6 +25,25 @@ Future<void> main() async {
     final prefs = await SharedPreferences.getInstance();
     savedDarkMode = prefs.getBool('dark_mode') ?? false;
     savedExclusiveTheme = prefs.getBool('exclusive_content_unlocked') ?? false;
+
+    if (savedExclusiveTheme && supabaseReady) {
+      final savedCode = prefs.getString('exclusive_activation_code');
+      if (savedCode == null || savedCode.trim().isEmpty) {
+        savedExclusiveTheme = false;
+        await prefs.setBool('exclusive_content_unlocked', false);
+      } else {
+        try {
+          final valid = await SupabaseService().validateKitaraActivationCode(savedCode);
+          if (!valid) {
+            savedExclusiveTheme = false;
+            await prefs.setBool('exclusive_content_unlocked', false);
+            await prefs.remove('exclusive_activation_code');
+          }
+        } catch (e) {
+          debugPrint('Activation validation on startup failed: $e');
+        }
+      }
+    }
   } catch (e) {
     debugPrint('SharedPreferences error: $e');
   }
@@ -94,14 +114,27 @@ class _KitaraAppState extends State<KitaraApp> {
     }
   }
 
-  Future<void> activateExclusiveTheme() async {
+  Future<void> activateExclusiveTheme(String activationCode) async {
     if (!mounted) return;
     setState(() => isExclusiveTheme = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('exclusive_content_unlocked', true);
+      await prefs.setString('exclusive_activation_code', activationCode.trim());
     } catch (e) {
       debugPrint('Exclusive theme save error: $e');
+    }
+  }
+
+  Future<void> deactivateExclusiveTheme() async {
+    if (!mounted) return;
+    setState(() => isExclusiveTheme = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('exclusive_content_unlocked', false);
+      await prefs.remove('exclusive_activation_code');
+    } catch (e) {
+      debugPrint('Exclusive theme clear error: $e');
     }
   }
 
@@ -112,12 +145,10 @@ class _KitaraAppState extends State<KitaraApp> {
   }
 
   ThemeData _theme(Brightness brightness) {
+    const green = Color(0xFF2E7D32);
     const orange = Color(0xFFF28C28);
-    const gold = Color(0xFFC89B3C);
-    final accent = isExclusiveTheme ? gold : orange;
+    final accent = isExclusiveTheme ? orange : green;
     final dark = brightness == Brightness.dark;
-    final exclusiveLight = isExclusiveTheme && !dark;
-    final exclusiveDark = isExclusiveTheme && dark;
 
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
@@ -129,48 +160,26 @@ class _KitaraAppState extends State<KitaraApp> {
       fontFamily: 'Amiri',
       colorScheme: scheme,
       primaryColor: accent,
-      scaffoldBackgroundColor: exclusiveLight
-          ? const Color(0xFFFFFBF3)
-          : dark
-              ? const Color(0xFF121212)
-              : Colors.white,
+      scaffoldBackgroundColor: dark ? const Color(0xFF121212) : Colors.white,
       appBarTheme: AppBarTheme(
-        backgroundColor: exclusiveLight
-            ? const Color(0xFFC89B3C)
-            : exclusiveDark
-                ? const Color(0xFF2A2418)
-                : dark
-                    ? const Color(0xFF121212)
-                    : Colors.white,
-        foregroundColor: exclusiveLight || exclusiveDark
-            ? Colors.white
-            : dark
-                ? Colors.white
-                : Colors.black87,
-        elevation: isExclusiveTheme ? 2 : 0,
+        backgroundColor: dark ? const Color(0xFF121212) : Colors.white,
+        foregroundColor: dark ? Colors.white : Colors.black87,
+        elevation: 0,
         centerTitle: false,
-        surfaceTintColor: isExclusiveTheme ? gold : Colors.transparent,
+        surfaceTintColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
-        color: exclusiveLight ? Colors.white : null,
-        surfaceTintColor: exclusiveLight ? gold.withValues(alpha: 0.04) : null,
-        elevation: exclusiveLight ? 2 : 1,
+        color: dark ? null : Colors.white,
+        surfaceTintColor: accent.withValues(alpha: 0.03),
+        elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: isExclusiveTheme
-              ? BorderSide(color: gold.withValues(alpha: 0.28))
-              : BorderSide.none,
+          side: BorderSide(color: accent.withValues(alpha: 0.12)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: exclusiveLight
-            ? const Color(0xFFFFF8E8)
-            : exclusiveDark
-                ? const Color(0xFF211E18)
-                : dark
-                    ? const Color(0xFF1E1E1E)
-                    : Colors.white,
-        indicatorColor: accent.withValues(alpha: 0.18),
+        backgroundColor: dark ? const Color(0xFF1E1E1E) : Colors.white,
+        indicatorColor: accent.withValues(alpha: 0.14),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(
             fontFamily: 'Amiri',
@@ -187,7 +196,7 @@ class _KitaraAppState extends State<KitaraApp> {
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.white,
-          elevation: isExclusiveTheme ? 3 : 2,
+          elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           textStyle: const TextStyle(
@@ -204,17 +213,13 @@ class _KitaraAppState extends State<KitaraApp> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: isExclusiveTheme
-                ? gold.withValues(alpha: 0.35)
-                : Colors.black12,
-          ),
+          borderSide: BorderSide(color: accent.withValues(alpha: 0.20)),
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
       chipTheme: ChipThemeData(
-        selectedColor: accent.withValues(alpha: 0.18),
-        side: BorderSide(color: accent.withValues(alpha: 0.35)),
+        selectedColor: accent.withValues(alpha: 0.14),
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
       ),
     );
   }
@@ -252,6 +257,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             onThemeToggle: appState?.toggleTheme ?? () {},
             isDarkMode: appState?.isDarkMode ?? false,
             onExclusiveActivated: appState?.activateExclusiveTheme,
+            onExclusiveDeactivated: appState?.deactivateExclusiveTheme,
           ),
         ),
       );
@@ -260,7 +266,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    const green = Color(0xFF2E7D32);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -270,9 +276,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/kitara_icon.png', width: 120, height: 120, fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const SizedBox(width: 120, height: 120, child: Icon(Icons.menu_book, size: 80, color: orange))),
+                Image.asset('assets/kitara_icon.png', width: 120, height: 120, fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const SizedBox(width: 120, height: 120, child: Icon(Icons.menu_book, size: 80, color: green))),
                 const SizedBox(height: 24),
-                const Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: orange, letterSpacing: 2)),
+                const Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2)),
                 const SizedBox(height: 6),
                 const Text('كِتارا', style: TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 18),
@@ -293,13 +299,13 @@ class SupabaseErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const orange = Color(0xFFF28C28);
+    const green = Color(0xFF2E7D32);
     return Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.cloud_off_rounded, size: 70, color: orange),
+            const Icon(Icons.cloud_off_rounded, size: 70, color: green),
             const SizedBox(height: 20),
             const Text('تعذر تشغيل كِتارا', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
