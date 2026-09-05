@@ -312,7 +312,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
       },
-      destinations: const [
+      destinations: [
         NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white70), selectedIcon: Icon(Icons.home_rounded, color: Colors.white), label: config.navHome),
         NavigationDestination(icon: Icon(Icons.menu_book_outlined, color: Colors.white70), selectedIcon: Icon(Icons.menu_book_rounded, color: Colors.white), label: config.navLibrary),
         NavigationDestination(icon: Icon(Icons.favorite_border_rounded, color: Colors.white70), selectedIcon: Icon(Icons.favorite_rounded, color: Colors.white), label: config.navFavorites),
