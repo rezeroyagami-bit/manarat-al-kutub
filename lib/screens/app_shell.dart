@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../services/supabase_service.dart';
+import '../services/ad_block_detector.dart';
+import 'ad_block_screen.dart';
 import 'downloads_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
@@ -21,13 +23,40 @@ class _AppShellState extends State<AppShell> {
   final SupabaseService _supabaseService = SupabaseService();
   List<Book> books = [];
   bool loading = true;
+  bool adBlockCheckComplete = false;
+  bool adBlockDetected = false;
   String? errorMessage;
   int currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    loadBooks();
+    _checkAdBlockerAndLoadBooks();
+  }
+
+  Future<void> _checkAdBlockerAndLoadBooks() async {
+    if (mounted) {
+      setState(() {
+        loading = true;
+        errorMessage = null;
+        adBlockCheckComplete = false;
+      });
+    }
+
+    final blocked = await AdBlockDetector.isLikelyBlocked();
+    if (!mounted) return;
+
+    setState(() {
+      adBlockDetected = blocked;
+      adBlockCheckComplete = true;
+    });
+
+    if (blocked) {
+      setState(() => loading = false);
+      return;
+    }
+
+    await loadBooks();
   }
 
   Future<void> loadBooks() async {
@@ -47,7 +76,10 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const _LoadingScreen();
+    if (!adBlockCheckComplete || loading) return const _LoadingScreen();
+    if (adBlockDetected) {
+      return AdBlockScreen(onRetry: _checkAdBlockerAndLoadBooks);
+    }
     if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: loadBooks);
 
     final screens = <Widget>[
