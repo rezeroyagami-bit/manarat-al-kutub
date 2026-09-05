@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:public_file_saver/public_file_saver.dart';
 
 import '../models/book.dart';
+import '../services/ad_block_detector.dart';
 import '../services/downloads_service.dart';
 
 class DownloadOptionsScreen extends StatefulWidget {
@@ -100,6 +101,13 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   Future<void> _showRewardedAd() async {
     if (_isDownloading) return;
 
+    // Check for an ad blocker before waiting for an ad that cannot load.
+    final blocked = await AdBlockDetector.isLikelyBlocked();
+    if (blocked) {
+      _showAdBlockMessage();
+      return;
+    }
+
     if (_rewardedAd == null) {
       if (mounted) setState(() => _status = 'جاري تجهيز الإعلان التجريبي...');
       _loadRewardedAd();
@@ -129,6 +137,26 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     ad.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
       _earnedReward = true;
     });
+  }
+
+  void _showAdBlockMessage() {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('🚫 تم اكتشاف مانع الإعلانات'),
+        content: const Text(
+          'لا يمكن تحميل الملفات أثناء استخدام مانع الإعلانات.\n\n'
+          'للمواصلة، يرجى تعطيل AdGuard أو أي مانع إعلانات ثم إعادة المحاولة.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('حسنًا'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _sanitizeFileName(String value) {
@@ -233,7 +261,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       final message = data['error'];
       if (message is String && message.isNotEmpty) return message;
     }
-    return 'تعذر الحصول على الملف الحقيقي من الخادم. حاول مرة أخرى.';
+    return 'تعذر الحصول على الملف من الخادم. حاول مرة أخرى.';
   }
 
   Future<void> _startDownload() async {
@@ -255,7 +283,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       temporaryFile = File(temporaryPath);
       if (await temporaryFile.exists()) await temporaryFile.delete();
 
-      if (mounted) setState(() => _status = 'جاري تنزيل الملف الحقيقي...');
+      if (mounted) setState(() => _status = 'جاري تنزيل الملف...');
 
       final response = await _dio.download(
         proxyUrl,
@@ -325,7 +353,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
           _status = 'اكتمل التحميل';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تحميل الملف الحقيقي وإضافته إلى «تنزيلاتي» في KITARA.')),
+          const SnackBar(content: Text('تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.')),
         );
       }
       _loadRewardedAd();
