@@ -78,9 +78,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           await _clearExclusiveState();
           return;
         }
-      } catch (_) {
-        // Keep the current state during a temporary connection problem.
-      }
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() => exclusiveUnlocked = true);
@@ -109,9 +107,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         setState(() => exclusiveUnlocked = true);
         await widget.onExclusiveActivated?.call(savedCode);
       }
-    } catch (_) {
-      // Do not remove a valid-looking activation during a temporary outage.
-    } finally {
+    } catch (_) {} finally {
       _checkingActivation = false;
     }
   }
@@ -224,26 +220,25 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Widget _buildNavigationBar(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     const green = Color(0xFF2E7D32);
     const orange = Color(0xFFF28C28);
     final accent = exclusiveUnlocked ? orange : green;
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
-      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      backgroundColor: accent,
       elevation: 8,
       shadowColor: Colors.black26,
-      indicatorColor: accent.withValues(alpha: 0.14),
+      indicatorColor: Colors.white.withValues(alpha: 0.20),
       onDestinationSelected: (index) {
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
       },
       destinations: [
-        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded, color: accent), label: 'الرئيسية'),
-        NavigationDestination(icon: const Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book_rounded, color: accent), label: 'المكتبة'),
-        NavigationDestination(icon: const Icon(Icons.favorite_border_rounded), selectedIcon: Icon(Icons.favorite_rounded, color: accent), label: 'المفضلة'),
-        NavigationDestination(icon: const Icon(Icons.download_outlined), selectedIcon: Icon(Icons.download_rounded, color: accent), label: 'تنزيلاتي'),
+        NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white70), selectedIcon: Icon(Icons.home_rounded, color: Colors.white), label: 'الرئيسية'),
+        NavigationDestination(icon: Icon(Icons.menu_book_outlined, color: Colors.white70), selectedIcon: Icon(Icons.menu_book_rounded, color: Colors.white), label: 'المكتبة'),
+        NavigationDestination(icon: Icon(Icons.favorite_border_rounded, color: Colors.white70), selectedIcon: Icon(Icons.favorite_rounded, color: Colors.white), label: 'المفضلة'),
+        NavigationDestination(icon: Icon(Icons.download_outlined, color: Colors.white70), selectedIcon: Icon(Icons.download_rounded, color: Colors.white), label: 'تنزيلاتي'),
       ],
     );
   }
