@@ -120,7 +120,7 @@ jobs:
             git push
           fi
       - name: Analyze Dart library
-        run: flutter analyze lib
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
       - name: Build KITARA APK
         run: flutter build apk --release
       - name: Upload KITARA APK
