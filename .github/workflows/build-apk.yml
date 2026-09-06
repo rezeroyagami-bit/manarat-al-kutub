@@ -33,39 +33,19 @@ jobs:
           echo "Android SDK: $ANDROID_SDK_ROOT"
           SDKMANAGER="$(command -v sdkmanager || true)"
           if [ -z "$SDKMANAGER" ]; then
-            if [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-              SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-            elif [ -x "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then
-              SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager"
-            else
-              echo "ERROR: sdkmanager not found"
-              exit 1
-            fi
+            if [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager";
+            elif [ -x "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager" ]; then SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager";
+            else echo "ERROR: sdkmanager not found"; exit 1; fi
           fi
-          echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           NDK_VERSION="27.0.12077973"
           NDK_PATH="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
-          echo "Installing NDK $NDK_VERSION"
           for attempt in 1 2 3; do
-            echo "NDK installation attempt: $attempt"
             rm -rf "$NDK_PATH"
-            if "$SDKMANAGER" --install "ndk;$NDK_VERSION"; then
-              if [ -f "$NDK_PATH/source.properties" ]; then
-                echo "NDK $NDK_VERSION installed successfully."
-                break
-              fi
-            fi
-            echo "NDK installation failed. Retrying..."
-            rm -rf "$NDK_PATH"
-            sleep 10
-            if [ "$attempt" = "3" ]; then
-              echo "ERROR: Failed to install NDK $NDK_VERSION"
-              exit 1
-            fi
+            if "$SDKMANAGER" --install "ndk;$NDK_VERSION" && [ -f "$NDK_PATH/source.properties" ]; then break; fi
+            rm -rf "$NDK_PATH"; sleep 10
+            if [ "$attempt" = "3" ]; then echo "ERROR: Failed to install NDK $NDK_VERSION"; exit 1; fi
           done
-          echo "Installed NDK contents:"
-          ls -la "$NDK_PATH"
 
       - name: Download Amiri font
         run: |
@@ -99,6 +79,62 @@ jobs:
 
       - name: Generate KITARA app icon
         run: dart run flutter_launcher_icons
+
+      - name: Repair HomeScreen syntax and persist the fix
+        shell: bash
+        run: |
+          set -e
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('lib/screens/home_screen.dart')
+          s = p.read_text(encoding='utf-8')
+          replacement = '''class _EmptyState extends StatelessWidget {
+            final bool hasSearch;
+            final Color accent;
+
+            const _EmptyState({required this.hasSearch, required this.accent});
+
+            @override
+            Widget build(BuildContext context) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded,
+                        size: 54,
+                        color: accent,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          }
+          '''
+          s2, n = re.subn(r'class _EmptyState extends StatelessWidget \{.*\Z', replacement, s, flags=re.S)
+          if n:
+              p.write_text(s2, encoding='utf-8')
+          PY
+          if ! git diff --quiet -- lib/screens/home_screen.dart; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add lib/screens/home_screen.dart
+            git commit -m 'Fix HomeScreen empty state syntax'
+            git push
+          fi
+
+      - name: Analyze Dart code
+        run: flutter analyze
 
       - name: Build KITARA APK
         run: flutter build apk --release
