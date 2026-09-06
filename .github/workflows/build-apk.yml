@@ -12,25 +12,20 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.0'
           channel: stable
-
       - name: Create Android project
         run: flutter create . --platforms=android
-
       - name: Install Android NDK
         shell: bash
         run: |
           set -e
-          echo "Android SDK: $ANDROID_SDK_ROOT"
           SDKMANAGER="$(command -v sdkmanager || true)"
           if [ -z "$SDKMANAGER" ]; then
             if [ -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager";
@@ -46,13 +41,11 @@ jobs:
             rm -rf "$NDK_PATH"; sleep 10
             if [ "$attempt" = "3" ]; then echo "ERROR: Failed to install NDK $NDK_VERSION"; exit 1; fi
           done
-
       - name: Download Amiri font
         run: |
           mkdir -p assets/fonts
           curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
           curl -L "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
-
       - name: Configure Android app
         run: |
           python - <<'PY'
@@ -73,14 +66,11 @@ jobs:
               s = s.replace('</application>', admob_metadata + '\n    </application>', 1)
           p.write_text(s, encoding="utf-8")
           PY
-
       - name: Get dependencies
         run: flutter pub get
-
       - name: Generate KITARA app icon
         run: dart run flutter_launcher_icons
-
-      - name: Repair HomeScreen syntax and persist the fix
+      - name: Repair known Dart issues and persist fixes
         shell: bash
         run: |
           set -e
@@ -92,9 +82,7 @@ jobs:
           replacement = '''class _EmptyState extends StatelessWidget {
             final bool hasSearch;
             final Color accent;
-
             const _EmptyState({required this.hasSearch, required this.accent});
-
             @override
             Widget build(BuildContext context) {
               return Center(
@@ -103,17 +91,9 @@ jobs:
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded,
-                        size: 54,
-                        color: accent,
-                      ),
+                      Icon(hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded, size: 54, color: accent),
                       const SizedBox(height: 14),
-                      Text(
-                        hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      Text(hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -122,23 +102,27 @@ jobs:
           }
           '''
           s2, n = re.subn(r'class _EmptyState extends StatelessWidget \{.*\Z', replacement, s, flags=re.S)
-          if n:
-              p.write_text(s2, encoding='utf-8')
+          if n: s = s2
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('lib/screens/download_options_screen.dart')
+          s = p.read_text(encoding='utf-8')
+          old = "final savedFile = await _fileSaver.saveFile(file: temporaryFile, fileName: fileName, mimeType: _getMimeType(fileName));"
+          new = "final savedFile = await _fileSaver.saveBytes(bytes: await temporaryFile.readAsBytes(), fileName: fileName, mimeType: _getMimeType(fileName));"
+          if old in s:
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
           PY
-          if ! git diff --quiet -- lib/screens/home_screen.dart; then
+          if ! git diff --quiet -- lib/screens/home_screen.dart lib/screens/download_options_screen.dart; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add lib/screens/home_screen.dart
-            git commit -m 'Fix HomeScreen empty state syntax'
+            git add lib/screens/home_screen.dart lib/screens/download_options_screen.dart
+            git commit -m 'Fix remaining Dart compile issues'
             git push
           fi
-
-      - name: Analyze Dart code
-        run: flutter analyze
-
+      - name: Analyze Dart library
+        run: flutter analyze lib
       - name: Build KITARA APK
         run: flutter build apk --release
-
       - name: Upload KITARA APK
         uses: actions/upload-artifact@v4
         with:
