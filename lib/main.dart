@@ -1,63 +1,251 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import 'screens/app_shell.dart';
+import 'services/supabase_config.dart';
+import 'services/supabase_service.dart';
 import 'services/remote_config.dart';
+import 'screens/app_shell.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const KitaraApp());
+  bool savedDarkMode = false;
+  bool savedExclusiveTheme = false;
+  bool supabaseReady = false;
+
+  try {
+    await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
+    supabaseReady = true;
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
+
+  if (supabaseReady) {
+    await RemoteConfigStore.instance.load(supabaseReady: true);
+  }
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    savedDarkMode = prefs.getBool('dark_mode') ?? false;
+    savedExclusiveTheme = prefs.getBool('exclusive_content_unlocked') ?? false;
+
+    if (savedExclusiveTheme && supabaseReady) {
+      final savedCode = prefs.getString('exclusive_activation_code');
+      if (savedCode == null || savedCode.trim().isEmpty) {
+        savedExclusiveTheme = false;
+        await prefs.setBool('exclusive_content_unlocked', false);
+      } else {
+        try {
+          final valid = await SupabaseService().validateKitaraActivationCode(savedCode);
+          if (!valid) {
+            savedExclusiveTheme = false;
+            await prefs.setBool('exclusive_content_unlocked', false);
+            await prefs.remove('exclusive_activation_code');
+          }
+        } catch (e) {
+          debugPrint('Activation validation on startup failed: $e');
+        }
+      }
+    }
+  } catch (e) {
+    debugPrint('SharedPreferences error: $e');
+  }
+
+  runApp(KitaraApp(
+    initialDarkMode: savedDarkMode,
+    initialExclusiveTheme: savedExclusiveTheme,
+    supabaseReady: supabaseReady,
+  ));
+  _initializeAdsSafely();
+}
+
+Future<void> _initializeAdsSafely() async {
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e) {
+    debugPrint('AdMob initialization error: $e');
+  }
 }
 
 class KitaraApp extends StatefulWidget {
-  const KitaraApp({super.key});
+  final bool initialDarkMode;
+  final bool initialExclusiveTheme;
+  final bool supabaseReady;
+
+  const KitaraApp({
+    super.key,
+    required this.initialDarkMode,
+    required this.initialExclusiveTheme,
+    required this.supabaseReady,
+  });
 
   @override
   State<KitaraApp> createState() => _KitaraAppState();
 }
 
 class _KitaraAppState extends State<KitaraApp> {
-  bool isDarkMode = false;
-  bool exclusiveUnlocked = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  late bool isDarkMode;
+  late bool isExclusiveTheme;
 
-  void toggleTheme() {
+  @override
+  void initState() {
+    super.initState();
+    isDarkMode = widget.initialDarkMode;
+    isExclusiveTheme = widget.initialExclusiveTheme;
+    _playIntro();
+  }
+
+  Future<void> _playIntro() async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+      await _audioPlayer.play(AssetSource('kitara_intro.wav'));
+    } catch (e) {
+      debugPrint('Intro audio error: $e');
+    }
+  }
+
+  Future<void> toggleTheme() async {
+    if (!mounted) return;
     setState(() => isDarkMode = !isDarkMode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('dark_mode', isDarkMode);
+    } catch (e) {
+      debugPrint('Theme save error: $e');
+    }
   }
 
-  void activateExclusiveTheme() {
-    setState(() => exclusiveUnlocked = true);
+  Future<void> activateExclusiveTheme(String activationCode) async {
+    if (!mounted) return;
+    setState(() => isExclusiveTheme = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('exclusive_content_unlocked', true);
+      await prefs.setString('exclusive_activation_code', activationCode.trim());
+    } catch (e) {
+      debugPrint('Exclusive theme save error: $e');
+    }
   }
 
-  void deactivateExclusiveTheme() {
-    setState(() => exclusiveUnlocked = false);
+  Future<void> deactivateExclusiveTheme() async {
+    if (!mounted) return;
+    setState(() => isExclusiveTheme = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('exclusive_content_unlocked', false);
+      await prefs.remove('exclusive_activation_code');
+    } catch (e) {
+      debugPrint('Exclusive theme clear error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  ThemeData _theme(Brightness brightness, KitaraRemoteConfig config) {
+    final accent = isExclusiveTheme ? config.exclusivePrimaryColor : config.freePrimaryColor;
+    final dark = brightness == Brightness.dark;
+    final background = isExclusiveTheme
+        ? (dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7))
+        : (dark ? const Color(0xFF101810) : const Color(0xFFF7FBF7));
+
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: brightness,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: 'Amiri',
+      colorScheme: scheme,
+      primaryColor: accent,
+      scaffoldBackgroundColor: background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      cardTheme: CardThemeData(
+        color: dark ? const Color(0xFF1C241C) : Colors.white,
+        surfaceTintColor: accent.withValues(alpha: 0.04),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: accent.withValues(alpha: 0.18)),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: dark ? const Color(0xFF172017) : Colors.white,
+        indicatorColor: accent.withValues(alpha: 0.16),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(
+            fontFamily: 'Amiri',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          return IconThemeData(
+            color: states.contains(WidgetState.selected) ? accent : Colors.grey,
+          );
+        }),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: const TextStyle(
+            fontFamily: 'Amiri',
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: accent, width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: accent.withValues(alpha: 0.28)),
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
+      chipTheme: ChipThemeData(
+        selectedColor: accent.withValues(alpha: 0.16),
+        side: BorderSide(color: accent.withValues(alpha: 0.32)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final config = RemoteConfigStore.instance.config;
-    final accent = exclusiveUnlocked
-        ? config.exclusivePrimaryColor
-        : config.freePrimaryColor;
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: config.appTitle,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: accent),
-        fontFamily: 'Amiri',
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: accent,
-          brightness: Brightness.dark,
-        ),
-        fontFamily: 'Amiri',
-        useMaterial3: true,
-      ),
-      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const WelcomeScreen(),
+    return AnimatedBuilder(
+      animation: RemoteConfigStore.instance,
+      builder: (context, _) {
+        final config = RemoteConfigStore.instance.config;
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: config.appTitle,
+          themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          theme: _theme(Brightness.light, config),
+          darkTheme: _theme(Brightness.dark, config),
+          home: widget.supabaseReady ? const WelcomeScreen() : const SupabaseErrorScreen(),
+        );
+      },
     );
   }
 }
@@ -102,61 +290,41 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/kitara_icon.png',
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: Icon(Icons.menu_book, size: 80, color: green),
-                  ),
-                ),
+                Image.asset('assets/kitara_icon.png', width: 120, height: 120, fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => SizedBox(width: 120, height: 120, child: Icon(Icons.menu_book, size: 80, color: green))),
                 const SizedBox(height: 24),
-                Text(
-                  'KITARA',
-                  style: TextStyle(
-                    fontFamily: 'Amiri',
-                    fontSize: 38,
-                    fontWeight: FontWeight.bold,
-                    color: green,
-                    letterSpacing: 2,
-                  ),
-                ),
+                Text('KITARA', style: TextStyle(fontFamily: 'Amiri', fontSize: 38, fontWeight: FontWeight.bold, color: green, letterSpacing: 2)),
                 const SizedBox(height: 6),
-                Text(
-                  config.brandArabic,
-                  style: const TextStyle(
-                    fontFamily: 'Amiri',
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text(config.brandArabic, style: const TextStyle(fontFamily: 'Amiri', fontSize: 28, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 18),
-                Text(
-                  config.introTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Amiri',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
+                Text(config.introTitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87)),
                 const SizedBox(height: 10),
-                Text(
-                  config.introSubtitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'Amiri',
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
-                ),
+                Text(config.introSubtitle, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 16, color: Colors.black54)),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class SupabaseErrorScreen extends StatelessWidget {
+  const SupabaseErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const green = Color(0xFF2E7D32);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.cloud_off_rounded, size: 70, color: green),
+            const SizedBox(height: 20),
+            const Text('تعذر تشغيل كِتارا', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('تعذر تهيئة الاتصال بالخادم.\nتحقق من اتصال الإنترنت ثم أعد تشغيل التطبيق.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Amiri', fontSize: 16, height: 1.7, color: Colors.grey)),
+          ]),
         ),
       ),
     );
