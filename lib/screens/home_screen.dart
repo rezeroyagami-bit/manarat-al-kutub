@@ -110,6 +110,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final books = results.where((book) => !book.isMagazine).toList();
     final hiddenOldMagazines = (config.values['hide_from_old_magazines_ids'] ?? '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
     final magazines = results.where((book) => book.isMagazine && !hiddenOldMagazines.contains(book.id)).toList();
+    final hiddenLatestContentIds = (config.values['hide_from_latest_content_ids'] ?? '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
+    final latestResults = searchText.trim().isEmpty
+        ? results.where((book) => !hiddenLatestContentIds.contains(book.id)).toList()
+        : results;
 
     return Scaffold(
       appBar: AppBar(
@@ -209,16 +213,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]),
               ),
             ),
-            if (results.isEmpty)
+            if (latestResults.isEmpty)
               SliverFillRemaining(hasScrollBody: false, child: _EmptyState(hasSearch: searchText.trim().isNotEmpty, accent: accent))
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                 sliver: SliverGrid(
                   delegate: SliverChildBuilderDelegate((_, index) {
-                    final book = results[index];
+                    final book = latestResults[index];
                     return _BookCard(book: book, onTap: () => book.isMagazine ? _openMagazine(book) : _openBook(book));
-                  }, childCount: results.length),
+                  }, childCount: latestResults.length),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 18, childAspectRatio: 0.64),
                 ),
               ),
