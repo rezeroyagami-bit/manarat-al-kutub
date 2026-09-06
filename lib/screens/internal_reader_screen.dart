@@ -25,21 +25,11 @@ class InternalReaderScreen extends StatelessWidget {
         return _ReaderScaffold(title: title, child: SfPdfViewer.file(File(filePath)));
       case 'doc':
       case 'docx':
-        return _ReaderScaffold(
-          title: title,
-          child: DocxView(
-            filePath: filePath,
-            fontSize: 18,
-            onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error'),
-          ),
-        );
+        return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error')));
       case 'cbr':
         return _CbrReader(filePath: filePath, title: title);
       default:
-        return _ReaderScaffold(
-          title: title,
-          child: const _ReaderError(message: 'هذه الصيغة غير مدعومة حاليًا داخل قارئ KITARA.'),
-        );
+        return _ReaderScaffold(title: title, child: const _ReaderError(message: 'هذه الصيغة غير مدعومة حاليًا داخل قارئ KITARA.'));
     }
   }
 }
@@ -47,45 +37,22 @@ class InternalReaderScreen extends StatelessWidget {
 class _ReaderScaffold extends StatelessWidget {
   final String title;
   final Widget child;
-
   const _ReaderScaffold({required this.title, required this.child});
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-      body: child,
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: child);
 }
 
 class _ReaderError extends StatelessWidget {
   final String message;
-
   const _ReaderError({required this.message});
-
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(fontSize: 17, height: 1.7),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(message, textAlign: TextAlign.center, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 17, height: 1.7))));
 }
 
 class _CbrReader extends StatefulWidget {
   final String filePath;
   final String title;
-
   const _CbrReader({required this.filePath, required this.title});
-
   @override
   State<_CbrReader> createState() => _CbrReaderState();
 }
@@ -99,41 +66,22 @@ class _CbrReaderState extends State<_CbrReader> {
   int _currentPage = 0;
 
   @override
-  void initState() {
-    super.initState();
-    _loadPages();
-  }
+  void initState() { super.initState(); _loadPages(); }
 
   Future<void> _loadPages() async {
     try {
       final archive = await openArchiveFile(widget.filePath);
-      final pages = archive.files
-          .where((entry) {
-            final path = entry.path.toLowerCase();
-            return path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.webp') || path.endsWith('.gif');
-          })
-          .map((entry) => entry.path)
-          .toList();
+      final pages = archive.files.where((entry) {
+        final path = entry.path.toLowerCase();
+        return path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.webp') || path.endsWith('.gif');
+      }).map((entry) => entry.path).toList();
       pages.sort(_naturalCompare);
-      if (pages.isEmpty) {
-        await archive.close();
-        throw Exception('لم يتم العثور على صفحات صور داخل ملف CBR.');
-      }
-      if (!mounted) {
-        await archive.close();
-        return;
-      }
-      setState(() {
-        _archive = archive;
-        _pages = pages;
-        _loading = false;
-      });
+      if (pages.isEmpty) { await archive.close(); throw Exception('لم يتم العثور على صفحات صور داخل ملف CBR.'); }
+      if (!mounted) { await archive.close(); return; }
+      setState(() { _archive = archive; _pages = pages; _loading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
+      setState(() { _loading = false; _error = e.toString().replaceFirst('Exception: ', ''); });
     }
   }
 
@@ -160,33 +108,14 @@ class _CbrReaderState extends State<_CbrReader> {
   }
 
   @override
-  void dispose() {
-    _pageController.dispose();
-    _archive?.close();
-    super.dispose();
-  }
+  void dispose() { _pageController.dispose(); _archive?.close(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-        body: _ReaderError(message: 'تعذر فتح المجلة.\n$_error'),
-      );
-    }
+    if (_loading) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: const Center(child: CircularProgressIndicator()));
+    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\n$_error'));
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          Center(child: Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: Text('${_currentPage + 1}/${_pages.length}'))),
-        ],
-      ),
+      appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [Center(child: Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: Text('${_currentPage + 1}/${_pages.length}')))]),
       body: PageView.builder(
         controller: _pageController,
         itemCount: _pages.length,
@@ -196,10 +125,21 @@ class _CbrReaderState extends State<_CbrReader> {
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
             if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
-            return InteractiveViewer(
-              minScale: 0.7,
-              maxScale: 4,
-              child: Center(child: Image.memory(snapshot.data!, fit: BoxFit.contain, filterQuality: FilterQuality.high)),
+            return LayoutBuilder(
+              builder: (context, constraints) => InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 6.0,
+                panEnabled: true,
+                scaleEnabled: true,
+                boundaryMargin: const EdgeInsets.all(160),
+                clipBehavior: Clip.none,
+                constrained: true,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Image.memory(snapshot.data!, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+                ),
+              ),
             );
           },
         ),
