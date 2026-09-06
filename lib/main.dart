@@ -13,6 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool savedDarkMode = false;
   bool savedExclusiveTheme = false;
+  bool savedWelcomeSeen = false;
   bool supabaseReady = false;
 
   try {
@@ -30,6 +31,7 @@ Future<void> main() async {
     final prefs = await SharedPreferences.getInstance();
     savedDarkMode = prefs.getBool('dark_mode') ?? false;
     savedExclusiveTheme = prefs.getBool('exclusive_content_unlocked') ?? false;
+    savedWelcomeSeen = prefs.getBool('welcome_seen') ?? false;
 
     if (savedExclusiveTheme && supabaseReady) {
       final savedCode = prefs.getString('exclusive_activation_code');
@@ -56,6 +58,7 @@ Future<void> main() async {
   runApp(KitaraApp(
     initialDarkMode: savedDarkMode,
     initialExclusiveTheme: savedExclusiveTheme,
+    initialWelcomeSeen: savedWelcomeSeen,
     supabaseReady: supabaseReady,
   ));
   _initializeAdsSafely();
@@ -72,12 +75,14 @@ Future<void> _initializeAdsSafely() async {
 class KitaraApp extends StatefulWidget {
   final bool initialDarkMode;
   final bool initialExclusiveTheme;
+  final bool initialWelcomeSeen;
   final bool supabaseReady;
 
   const KitaraApp({
     super.key,
     required this.initialDarkMode,
     required this.initialExclusiveTheme,
+    required this.initialWelcomeSeen,
     required this.supabaseReady,
   });
 
@@ -105,6 +110,15 @@ class _KitaraAppState extends State<KitaraApp> {
       await _audioPlayer.play(AssetSource('kitara_intro.wav'));
     } catch (e) {
       debugPrint('Intro audio error: $e');
+    }
+  }
+
+  Future<void> _markWelcomeSeen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('welcome_seen', true);
+    } catch (e) {
+      debugPrint('Welcome state save error: $e');
     }
   }
 
@@ -141,6 +155,15 @@ class _KitaraAppState extends State<KitaraApp> {
     } catch (e) {
       debugPrint('Exclusive theme clear error: $e');
     }
+  }
+
+  Widget _buildAppShell() {
+    return AppShell(
+      onThemeToggle: toggleTheme,
+      isDarkMode: isDarkMode,
+      onExclusiveActivated: activateExclusiveTheme,
+      onExclusiveDeactivated: deactivateExclusiveTheme,
+    );
   }
 
   @override
@@ -243,7 +266,9 @@ class _KitaraAppState extends State<KitaraApp> {
           themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
           theme: _theme(Brightness.light, config),
           darkTheme: _theme(Brightness.dark, config),
-          home: widget.supabaseReady ? const WelcomeScreen() : const SupabaseErrorScreen(),
+          home: widget.supabaseReady
+              ? (widget.initialWelcomeSeen ? _buildAppShell() : const WelcomeScreen())
+              : const SupabaseErrorScreen(),
         );
       },
     );
@@ -261,9 +286,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
       final appState = context.findAncestorStateOfType<_KitaraAppState>();
+      await appState?._markWelcomeSeen();
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => AppShell(
