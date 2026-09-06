@@ -388,13 +388,31 @@ class _EmptyBox extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool hasSearch;
   final Color accent;
+
   const _EmptyState({required this.hasSearch, required this.accent});
+
   @override
-  Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Icon(hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded, size: 70, color: accent),
-    const SizedBox(height: 18),
-    Text(hasSearch ? 'لم نجد ما تبحث عنه' : 'لا يوجد محتوى حاليًا', textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-    const SizedBox(height: 8),
-    Text(hasSearch ? 'جرّب البحث بعنوان أو مؤلف مختلف.' : 'سيظهر المحتوى هنا عند إضافته.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: Colors.grey)),
-  ]));
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded,
+              size: 54,
+              color: accent,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
