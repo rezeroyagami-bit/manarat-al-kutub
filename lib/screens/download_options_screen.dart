@@ -202,7 +202,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       final finalPath = '${temporaryDirectory.path}/$fileName';
       if (finalPath != temporaryFile.path) temporaryFile = await temporaryFile.rename(finalPath);
       if (mounted) setState(() => _status = 'جاري حفظ الملف في التنزيلات...');
-      final savedFile = await _fileSaver.saveFile(file: temporaryFile, fileName: fileName, mimeType: _getMimeType(fileName));
+      final savedFile = await _fileSaver.saveBytes(bytes: await temporaryFile.readAsBytes(), fileName: fileName, mimeType: _getMimeType(fileName));
       if (savedFile == null || !savedFile.isSuccess) throw Exception('PUBLIC_SAVE_FAILED');
       await _downloadsService.copyToAppDownloads(source: temporaryFile, book: widget.book, fileName: fileName);
       final newCoinBalance = await CoinsService().awardDownloadCoin();

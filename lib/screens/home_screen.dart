@@ -388,9 +388,7 @@ class _EmptyBox extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool hasSearch;
   final Color accent;
-
   const _EmptyState({required this.hasSearch, required this.accent});
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -399,17 +397,9 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded,
-              size: 54,
-              color: accent,
-            ),
+            Icon(hasSearch ? Icons.search_off_rounded : Icons.menu_book_rounded, size: 54, color: accent),
             const SizedBox(height: 14),
-            Text(
-              hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text(hasSearch ? 'لا توجد نتائج مطابقة.' : 'لا يوجد محتوى متاح حاليًا.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
