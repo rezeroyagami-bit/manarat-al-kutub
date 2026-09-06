@@ -77,7 +77,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               RemoteConfigStore.instance.config.freeActivationMessage,
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
