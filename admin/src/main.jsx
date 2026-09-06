@@ -3,8 +3,10 @@ import {createRoot} from 'react-dom/client';
 import {createClient} from '@supabase/supabase-js';
 import './style.css';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// The Supabase URL and publishable key are safe for a browser client.
+// Environment variables can override these defaults when the admin panel is deployed elsewhere.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://gftlkxpzympplwluxmah.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ZzcG37T_pgUGeAt_J6gr3w_ocfDTb9I';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const sections = [
