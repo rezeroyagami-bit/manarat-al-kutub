@@ -106,6 +106,15 @@ jobs:
           '''
           s2, n = re.subn(r'class _EmptyState extends StatelessWidget \{.*\Z', replacement, s, flags=re.S)
           if n: s = s2
+
+          old_latest = '''final latestResults = searchText.trim().isEmpty
+              ? results.where((book) => !hiddenLatestContentIds.contains(book.id)).toList()
+              : results;'''
+          new_latest = '''final latestResults = searchText.trim().isEmpty
+              ? results.where((book) => !hiddenLatestContentIds.contains(book.id)).take(4).toList()
+              : results;'''
+          if old_latest in s:
+              s = s.replace(old_latest, new_latest, 1)
           p.write_text(s, encoding='utf-8')
 
           p = Path('lib/screens/download_options_screen.dart')
