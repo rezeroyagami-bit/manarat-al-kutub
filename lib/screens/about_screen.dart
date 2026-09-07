@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/app_update_service.dart';
+
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
@@ -18,12 +20,7 @@ class AboutScreen extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          20,
-          24,
-          40,
-        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -33,9 +30,7 @@ class AboutScreen extends StatelessWidget {
               height: 110,
               fit: BoxFit.contain,
             ),
-
             const SizedBox(height: 20),
-
             const Text(
               'KITARA — كِتارا',
               textAlign: TextAlign.center,
@@ -46,48 +41,37 @@ class AboutScreen extends StatelessWidget {
                 color: orange,
               ),
             ),
-
             const SizedBox(height: 28),
-
             const Text(
               'كيتارا تطبيق عربي يهدف إلى جمع الكتب والمجلات في مكان واحد، لتسهيل اكتشاف المحتوى وقراءته والوصول إليه بطريقة بسيطة ومريحة.',
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
-              style: TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 18,
-                height: 1.8,
-              ),
+              style: TextStyle(fontFamily: 'Amiri', fontSize: 18, height: 1.8),
             ),
-
             const SizedBox(height: 20),
-
             const Text(
               'نؤمن أن لكل كتاب حكاية، وأن كل صفحة يمكن أن تفتح بابًا جديدًا للمعرفة والخيال.',
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
-              style: TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 18,
-                height: 1.8,
-              ),
+              style: TextStyle(fontFamily: 'Amiri', fontSize: 18, height: 1.8),
             ),
-
             const SizedBox(height: 20),
-
             const Text(
               'يتم نشر الكتب والمجلات والروابط داخل التطبيق فقط عندما يكون استخدامها أو توزيعها مصرحًا به من أصحاب الحقوق أو وفق الترخيص المناسب.',
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
-              style: TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 18,
-                height: 1.8,
+              style: TextStyle(fontFamily: 'Amiri', fontSize: 18, height: 1.8),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => AppUpdateService().showUpdateDialog(context, manual: true),
+                icon: const Icon(Icons.system_update_rounded),
+                label: const Text('التحقق من وجود تحديث'),
               ),
             ),
-
             const SizedBox(height: 32),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -100,38 +84,22 @@ class AboutScreen extends StatelessWidget {
                   Text(
                     'KITARA — كِتارا',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Amiri',
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontFamily: 'Amiri', fontSize: 21, fontWeight: FontWeight.bold),
                   ),
-
                   SizedBox(height: 8),
-
                   Text(
                     'كل صفحة... بداية حكاية.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Amiri',
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontFamily: 'Amiri', fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-
             const Text(
               'تم إنشاء التطبيق بواسطة ز . م',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 15,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontFamily: 'Amiri', fontSize: 15, color: Colors.grey),
             ),
           ],
         ),
