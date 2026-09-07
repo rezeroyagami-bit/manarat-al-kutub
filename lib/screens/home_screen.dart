@@ -100,6 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openAbout() => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
   void _openSupport() => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
 
+  bool _isIssueOne(String title) {
+    return RegExp(r'العدد\s*(?:1|١)(?:\D|$)').hasMatch(title.trim());
+  }
+
   @override
   Widget build(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
@@ -109,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final results = filteredBooks;
     final books = results.where((book) => !book.isMagazine).toList();
     final hiddenOldMagazines = (config.values['hide_from_old_magazines_ids'] ?? '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
-    final magazines = results.where((book) => book.isMagazine && !hiddenOldMagazines.contains(book.id)).toList();
+    final magazines = results.where((book) => book.isMagazine && !hiddenOldMagazines.contains(book.id) && _isIssueOne(book.title)).toList();
     final hiddenLatestContentIds = (config.values['hide_from_latest_content_ids'] ?? '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
     final latestResults = searchText.trim().isEmpty
         ? results.where((book) => !hiddenLatestContentIds.contains(book.id)).toList()
