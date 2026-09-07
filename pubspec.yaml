@@ -19,6 +19,7 @@ dependencies:
   path_provider: ^2.1.5
   public_file_saver: ^1.1.0
   open_filex: ^4.7.0
+  package_info_plus: ^8.3.1
   device_info_plus: ^10.1.2
   syncfusion_flutter_pdfviewer: 28.1.37
   docx_viewer: ^1.0.1
