@@ -54,8 +54,11 @@ jobs:
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text(encoding="utf-8")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          install_permission = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>'
           if permission not in s:
               s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    ' + permission)
+          if install_permission not in s:
+              s = s.replace(permission, permission + '\n    ' + install_permission)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           admob_metadata = '''
               <meta-data
@@ -122,7 +125,7 @@ jobs:
       - name: Analyze Dart library
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
       - name: Build KITARA APK
-        run: flutter build apk --release
+        run: flutter build apk --release --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
       - name: Upload KITARA APK artifact
         uses: actions/upload-artifact@v4
         with:
