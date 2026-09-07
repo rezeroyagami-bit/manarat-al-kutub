@@ -195,6 +195,7 @@ class _KitaraAppState extends State<KitaraApp> {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
+        toolbarHeight: 48,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
