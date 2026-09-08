@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/book.dart';
 import '../services/favorites_service.dart';
@@ -31,9 +32,48 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadNews();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _showTelegramInvite();
       if (mounted) AppUpdateService().showUpdateDialog(context);
     });
+  }
+
+  Future<void> _showTelegramInvite() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.telegram, color: Color(0xFF229ED9)),
+              SizedBox(width: 10),
+              Expanded(child: Text('انضم إلى قناة كِتارا')),
+            ],
+          ),
+          content: const Text(
+            'تابع جديد الكتب والمجلات والإصدارات والتنبيهات عبر قناة كِتارا على تيليجرام.',
+            textDirection: TextDirection.rtl,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('إلغاء ومواصلة التصفح'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final uri = Uri.parse('https://t.me/kitarabook');
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.telegram),
+              label: const Text('انضم الآن'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _loadNews() async {
