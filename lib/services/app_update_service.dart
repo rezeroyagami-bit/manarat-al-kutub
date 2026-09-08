@@ -70,7 +70,10 @@ class AppUpdateService {
     }
   }
 
-  Future<bool> downloadAndInstall(AppUpdateInfo info) async {
+  Future<String?> downloadUpdate(
+    AppUpdateInfo info, {
+    required void Function(int percent) onProgress,
+  }) async {
     try {
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/kitara-update-${info.buildNumber}.apk');
@@ -85,10 +88,26 @@ class AppUpdateService {
           followRedirects: true,
           maxRedirects: 10,
         ),
+        onReceiveProgress: (received, total) {
+          if (total > 0) {
+            final percent = ((received / total) * 100).round().clamp(0, 100);
+            onProgress(percent);
+          }
+        },
       );
 
+      if (!await file.exists() || await file.length() == 0) return null;
+      onProgress(100);
+      return file.path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> installUpdate(String filePath) async {
+    try {
       final result = await OpenFilex.open(
-        file.path,
+        filePath,
         type: 'application/vnd.android.package-archive',
       );
       return result.type == ResultType.done;
@@ -111,6 +130,10 @@ class AppUpdateService {
     }
 
     var downloading = false;
+    var downloaded = false;
+    var progress = 0;
+    String? downloadedFilePath;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -119,39 +142,94 @@ class AppUpdateService {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('تحديث جديد متوفر'),
-              content: Text(
-                'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تنزيل التحديث وتثبيته دون حذف النسخة الحالية.',
-                textDirection: TextDirection.rtl,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    downloaded
+                        ? 'تم تنزيل التحديث بنجاح. اضغط «تثبيت» لإكمال التحديث.'
+                        : 'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تنزيل التحديث وتثبيته دون حذف النسخة الحالية.',
+                    textDirection: TextDirection.rtl,
+                  ),
+                  if (downloading) ...[
+                    const SizedBox(height: 20),
+                    LinearProgressIndicator(value: progress / 100),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$progress%',
+                      textDirection: TextDirection.ltr,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                  ],
+                ],
               ),
               actions: [
-                TextButton(
-                  onPressed: downloading ? null : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('لاحقًا'),
-                ),
+                if (!downloading && !downloaded)
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('لاحقًا'),
+                  ),
+                if (!downloading && downloaded)
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('إلغاء'),
+                  ),
                 FilledButton.icon(
                   onPressed: downloading
                       ? null
-                      : () async {
-                          setState(() => downloading = true);
-                          final ok = await downloadAndInstall(info);
-                          if (!dialogContext.mounted) return;
-                          if (ok) {
-                            Navigator.of(dialogContext).pop();
-                          } else {
-                            setState(() => downloading = false);
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(content: Text('تعذر بدء تنزيل التحديث.')),
-                            );
-                          }
-                        },
+                      : downloaded
+                          ? () async {
+                              if (downloadedFilePath == null) return;
+                              final ok = await installUpdate(downloadedFilePath!);
+                              if (!dialogContext.mounted) return;
+                              if (!ok) {
+                                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                  const SnackBar(content: Text('تعذر بدء تثبيت التحديث.')),
+                                );
+                              }
+                            }
+                          : () async {
+                              setState(() {
+                                downloading = true;
+                                progress = 0;
+                              });
+                              final path = await downloadUpdate(
+                                info,
+                                onProgress: (value) {
+                                  if (dialogContext.mounted) {
+                                    setState(() => progress = value);
+                                  }
+                                },
+                              );
+                              if (!dialogContext.mounted) return;
+                              if (path != null) {
+                                setState(() {
+                                  downloading = false;
+                                  downloaded = true;
+                                  progress = 100;
+                                  downloadedFilePath = path;
+                                });
+                              } else {
+                                setState(() => downloading = false);
+                                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                  const SnackBar(content: Text('تعذر تنزيل التحديث.')),
+                                );
+                              }
+                            },
                   icon: downloading
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.system_update_rounded),
-                  label: Text(downloading ? 'جاري التنزيل...' : 'تحديث الآن'),
+                      : Icon(downloaded ? Icons.install_mobile_rounded : Icons.download_rounded),
+                  label: Text(
+                    downloading
+                        ? 'جاري التنزيل $progress%'
+                        : downloaded
+                            ? 'تثبيت'
+                            : 'تنزيل التحديث',
+                  ),
                 ),
               ],
             );
