@@ -66,7 +66,7 @@ class AboutScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => AppUpdateService().showUpdateDialog(context, manual: true),
+                onPressed: () => AppUpdateService().showUpdateDialog(context),
                 icon: const Icon(Icons.system_update_rounded),
                 label: const Text('التحقق من وجود تحديث'),
               ),
