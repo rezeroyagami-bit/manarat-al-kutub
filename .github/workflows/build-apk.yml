@@ -106,7 +106,6 @@ jobs:
           '''
           s2, n = re.subn(r'class _EmptyState extends StatelessWidget \{.*\Z', replacement, s, flags=re.S)
           if n: s = s2
-
           old_latest = '''final latestResults = searchText.trim().isEmpty
               ? results.where((book) => !hiddenLatestContentIds.contains(book.id)).toList()
               : results;'''
@@ -116,7 +115,6 @@ jobs:
           if old_latest in s:
               s = s.replace(old_latest, new_latest, 1)
           p.write_text(s, encoding='utf-8')
-
           p = Path('lib/screens/download_options_screen.dart')
           s = p.read_text(encoding='utf-8')
           old = "final savedFile = await _fileSaver.saveFile(file: temporaryFile, fileName: fileName, mimeType: _getMimeType(fileName));"
@@ -135,6 +133,20 @@ jobs:
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
       - name: Build KITARA APK
         run: flutter build apk --release --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
+      - name: Sign KITARA APK with stable key
+        env:
+          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
+          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
+          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
+        run: |
+          set -e
+          test -n "$KITARA_KEYSTORE_BASE64" || { echo "Stable signing secrets are not configured."; exit 1; }
+          mkdir -p "$RUNNER_TEMP/kitara-signing"
+          echo "$KITARA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kitara-signing/kitara.jks"
+          APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/kitara-signing/kitara.jks" --ks-key-alias "$KITARA_KEY_ALIAS" --ks-pass "pass:$KITARA_KEYSTORE_PASSWORD" --key-pass "pass:$KITARA_KEY_PASSWORD" build/app/outputs/flutter-apk/app-release.apk
+          "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
       - name: Upload KITARA APK artifact
         uses: actions/upload-artifact@v4
         with:
