@@ -22,9 +22,8 @@ class AppUpdateService {
   static const _latestReleaseUrl =
       'https://api.github.com/repos/rezeroyagami-bit/manarat-al-kutub/releases/latest';
 
-  // ضع رابط APK هنا لاحقًا إذا أردت استخدام رابط ثابت خاص بك.
-  // اتركه فارغًا لاستخدام أحدث إصدار تلقائيًا.
-  static const customUpdateUrl = '';
+  static const _updateProxyUrl =
+      'https://gftlkxpzympplwluxmah.supabase.co/functions/v1/kitara-update';
 
   final Dio _dio = Dio();
 
@@ -48,22 +47,13 @@ class AppUpdateService {
 
       final assets = data['assets'];
       if (assets is! List) return null;
-      Map<String, dynamic>? apk;
-      for (final item in assets) {
-        if (item is Map && item['name']?.toString() == 'kitara.apk') {
-          apk = Map<String, dynamic>.from(item);
-          break;
-        }
-      }
-
-      final githubUrl = apk?['browser_download_url']?.toString() ?? '';
-      final url = customUpdateUrl.trim().isNotEmpty ? customUpdateUrl.trim() : githubUrl;
-      if (url.isEmpty) return null;
+      final hasApk = assets.any((item) => item is Map && item['name']?.toString() == 'kitara.apk');
+      if (!hasApk) return null;
 
       return AppUpdateInfo(
         buildNumber: latestBuild,
         versionName: tag,
-        downloadUrl: url,
+        downloadUrl: _updateProxyUrl,
       );
     } catch (_) {
       return null;
@@ -155,11 +145,7 @@ class AppUpdateService {
                     const SizedBox(height: 20),
                     LinearProgressIndicator(value: progress / 100),
                     const SizedBox(height: 10),
-                    Text(
-                      '$progress%',
-                      textDirection: TextDirection.ltr,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
+                    Text('$progress%', textDirection: TextDirection.ltr),
                   ],
                 ],
               ),
@@ -184,7 +170,7 @@ class AppUpdateService {
                               if (!dialogContext.mounted) return;
                               if (!ok) {
                                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                  const SnackBar(content: Text('تعذر بدء تثبيت التحديث.')),
+                                  const SnackBar(content: Text('تعذر تحديث التطبيق.')),
                                 );
                               }
                             }
@@ -196,9 +182,7 @@ class AppUpdateService {
                               final path = await downloadUpdate(
                                 info,
                                 onProgress: (value) {
-                                  if (dialogContext.mounted) {
-                                    setState(() => progress = value);
-                                  }
+                                  if (dialogContext.mounted) setState(() => progress = value);
                                 },
                               );
                               if (!dialogContext.mounted) return;
@@ -206,8 +190,8 @@ class AppUpdateService {
                                 setState(() {
                                   downloading = false;
                                   downloaded = true;
-                                  progress = 100;
                                   downloadedFilePath = path;
+                                  progress = 100;
                                 });
                               } else {
                                 setState(() => downloading = false);
@@ -217,19 +201,9 @@ class AppUpdateService {
                               }
                             },
                   icon: downloading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : Icon(downloaded ? Icons.install_mobile_rounded : Icons.download_rounded),
-                  label: Text(
-                    downloading
-                        ? 'جاري التنزيل $progress%'
-                        : downloaded
-                            ? 'تثبيت'
-                            : 'تنزيل التحديث',
-                  ),
+                  label: Text(downloaded ? 'تثبيت' : 'تنزيل التحديث'),
                 ),
               ],
             );
@@ -239,7 +213,5 @@ class AppUpdateService {
     );
   }
 
-  void dispose() {
-    _dio.close(force: true);
-  }
+  void dispose() => _dio.close(force: true);
 }
