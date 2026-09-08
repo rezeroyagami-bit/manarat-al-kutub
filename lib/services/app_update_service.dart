@@ -43,7 +43,7 @@ class AppUpdateService {
                   downloadUrl,
                   apkPath,
                   onReceiveProgress: (received, total) {
-                    if (total > 0) {
+                    if (total > 0 && context.mounted) {
                       setState(() => progress = received / total);
                     }
                   },
@@ -54,6 +54,7 @@ class AppUpdateService {
                   ),
                 );
 
+                if (!context.mounted) return;
                 setState(() {
                   downloading = false;
                   downloaded = true;
@@ -147,7 +148,7 @@ class AppUpdateService {
       if (!hasApk) return null;
 
       return {
-        'version': tag.isNotEmpty ? tag : latestBuild.toString(),
+        'version': latestBuild.toString(),
         'downloadUrl': _updateProxyUrl,
       };
     } catch (_) {
