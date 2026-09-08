@@ -22,6 +22,10 @@ class AppUpdateService {
   static const _latestReleaseUrl =
       'https://api.github.com/repos/rezeroyagami-bit/manarat-al-kutub/releases/latest';
 
+  // ضع رابط APK هنا لاحقًا إذا أردت استخدام رابط ثابت خاص بك.
+  // اتركه فارغًا لاستخدام رابط أحدث إصدار من GitHub تلقائيًا.
+  static const customUpdateUrl = '';
+
   final Dio _dio = Dio();
 
   Future<AppUpdateInfo?> checkForUpdate() async {
@@ -51,8 +55,10 @@ class AppUpdateService {
           break;
         }
       }
-      final url = apk?['browser_download_url']?.toString();
-      if (url == null || url.isEmpty) return null;
+
+      final githubUrl = apk?['browser_download_url']?.toString() ?? '';
+      final url = customUpdateUrl.trim().isNotEmpty ? customUpdateUrl.trim() : githubUrl;
+      if (url.isEmpty) return null;
 
       return AppUpdateInfo(
         buildNumber: latestBuild,
@@ -113,9 +119,21 @@ class AppUpdateService {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('تحديث جديد متوفر'),
-              content: Text(
-                'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تحديث التطبيق مباشرة دون حذف النسخة الحالية.',
-                textDirection: TextDirection.rtl,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تنزيل التحديث وتثبيته دون حذف النسخة الحالية.',
+                    textDirection: TextDirection.rtl,
+                  ),
+                  const SizedBox(height: 12),
+                  SelectableText(
+                    info.downloadUrl,
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
@@ -134,7 +152,7 @@ class AppUpdateService {
                           } else {
                             setState(() => downloading = false);
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(content: Text('تعذر بدء تثبيت التحديث.')),
+                              const SnackBar(content: Text('تعذر بدء تنزيل التحديث.')),
                             );
                           }
                         },
@@ -145,7 +163,7 @@ class AppUpdateService {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.system_update_rounded),
-                  label: Text(downloading ? 'جاري التنزيل...' : 'تحديث الآن'),
+                  label: Text(downloading ? 'جاري التنزيل...' : 'تنزيل التحديث'),
                 ),
               ],
             );
