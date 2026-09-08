@@ -23,7 +23,7 @@ class AppUpdateService {
       'https://api.github.com/repos/rezeroyagami-bit/manarat-al-kutub/releases/latest';
 
   // ضع رابط APK هنا لاحقًا إذا أردت استخدام رابط ثابت خاص بك.
-  // اتركه فارغًا لاستخدام رابط أحدث إصدار من GitHub تلقائيًا.
+  // اتركه فارغًا لاستخدام أحدث إصدار تلقائيًا.
   static const customUpdateUrl = '';
 
   final Dio _dio = Dio();
@@ -119,21 +119,9 @@ class AppUpdateService {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('تحديث جديد متوفر'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تنزيل التحديث وتثبيته دون حذف النسخة الحالية.',
-                    textDirection: TextDirection.rtl,
-                  ),
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    info.downloadUrl,
-                    textDirection: TextDirection.ltr,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
+              content: Text(
+                'يتوفر إصدار جديد من كِتارا (${info.versionName}).\n\nيمكنك تنزيل التحديث وتثبيته دون حذف النسخة الحالية.',
+                textDirection: TextDirection.rtl,
               ),
               actions: [
                 TextButton(
@@ -163,7 +151,7 @@ class AppUpdateService {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.system_update_rounded),
-                  label: Text(downloading ? 'جاري التنزيل...' : 'تنزيل التحديث'),
+                  label: Text(downloading ? 'جاري التنزيل...' : 'تحديث الآن'),
                 ),
               ],
             );
