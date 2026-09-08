@@ -84,11 +84,6 @@ class AppUpdateService {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'الإصدار الجديد: $latestVersion',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
                   const Text('يمكنك تحديث التطبيق مباشرة دون حذف النسخة الحالية.'),
                   if (downloading) ...[
                     const SizedBox(height: 18),
