@@ -136,10 +136,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _openBook(Book book) {
-    if (book.isMagazine) {
-      _openMagazine(book);
-      return;
-    }
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DetailsScreen(book: book)),
