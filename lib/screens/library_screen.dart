@@ -18,6 +18,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final SupabaseService _service = SupabaseService();
   List<Map<String, dynamic>> _sections = [];
   bool _loadingSections = true;
+  List<Map<String, dynamic>> _magazines = [];
+  bool _loadingMagazines = true;
+  String? _magazineError;
+  String _magazineQuery = '';
   String? _selectedSection;
   String? _selectedSchoolLevel;
 
@@ -52,6 +56,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _loadSections();
+    _loadMagazines();
+  }
+
+  Future<void> _loadMagazines() async {
+    try {
+      final magazines = await _service.getMagazines();
+      if (!mounted) return;
+      setState(() { _magazines = magazines; _loadingMagazines = false; _magazineError = null; });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _loadingMagazines = false; _magazineError = 'تعذر تحميل المجلات. تحقق من الاتصال ثم أعد المحاولة.'; });
+    }
   }
 
   Future<void> _loadSections() async {
@@ -130,40 +146,127 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Future<void> _openMagazine(Book book) async {
-    String magazineName = book.title.trim();
-    if (magazineName.contains(' — العدد')) {
-      magazineName = magazineName.split(' — العدد').first.trim();
-    }
-    if (magazineName.startsWith('مجلة ')) {
-      magazineName = magazineName.substring(5).trim();
-    }
-    try {
-      final magazine = await _service.getMagazineByName(magazineName);
-      if (!mounted) return;
-      if (magazine == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر العثور على بيانات المجلة.')),
-        );
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MagazineScreen(
-            magazineId: magazine['id'] as String,
-            magazineName: magazine['name'] as String,
-            description: magazine['description'] as String?,
-            coverUrl: magazine['cover_url'] as String?,
+  void _openMagazine(Map<String, dynamic> magazine) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => MagazineScreen(
+      magazineId: magazine['id'] as String,
+      magazineName: magazine['name'] as String,
+      description: magazine['description'] as String?,
+      coverUrl: magazine['cover_url'] as String?,
+    )));
+  }
+
+  Widget _buildMagazines(bool isDark) {
+    final query = _magazineQuery.trim().toLowerCase();
+    final filtered = _magazines.where((magazine) {
+      final name = (magazine['name'] as String? ?? '').toLowerCase();
+      final description = (magazine['description'] as String? ?? '').toLowerCase();
+      return query.isEmpty || name.contains(query) || description.contains(query);
+    }).toList();
+
+    if (_loadingMagazines) return const Center(child: CircularProgressIndicator());
+    if (_magazineError != null) {
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_rounded, size: 54, color: Colors.grey),
+          const SizedBox(height: 12),
+          Text(_magazineError!, textAlign: TextAlign.center),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () { setState(() => _loadingMagazines = true); _loadMagazines(); },
+            icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة'),
           ),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح المجلة. تحقق من اتصال الإنترنت.')),
-      );
+        ]),
+      ));
     }
+
+    return RefreshIndicator(
+      onRefresh: _loadMagazines,
+      child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
+        SliverToBoxAdapter(child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('عالم المجلات', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 5),
+            Text('اختر مجلتك لتصفح جميع أعدادها مرتبة حسب الإصدار.',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, height: 1.5)),
+            const SizedBox(height: 16),
+            TextField(
+              onChanged: (value) => setState(() => _magazineQuery = value),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن مجلة...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                suffixIcon: _magazineQuery.isEmpty ? null : IconButton(
+                  onPressed: () => setState(() => _magazineQuery = ''),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('${filtered.length} مجلة متاحة',
+              style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
+          ]),
+        )),
+        if (filtered.isEmpty)
+          const SliverFillRemaining(hasScrollBody: false, child: Center(
+            child: Text('لا توجد مجلات تطابق بحثك.', style: TextStyle(color: Colors.grey)),
+          ))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+            sliver: SliverGrid(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final magazine = filtered[index];
+                final accent = Theme.of(context).colorScheme.primary;
+                final name = magazine['name'] as String? ?? 'مجلة';
+                final description = magazine['description'] as String? ?? '';
+                final cover = magazine['cover_url'] as String?;
+                return Card(
+                  clipBehavior: Clip.antiAlias,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  child: InkWell(
+                    onTap: () => _openMagazine(magazine),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Expanded(child: Stack(fit: StackFit.expand, children: [
+                        if (cover != null && cover.trim().isNotEmpty)
+                          Image.network(cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(
+                            color: accent.withValues(alpha: 0.08),
+                            child: Icon(Icons.auto_stories_rounded, size: 48, color: accent),
+                          ))
+                        else
+                          Container(color: accent.withValues(alpha: 0.08),
+                            child: Icon(Icons.auto_stories_rounded, size: 48, color: accent)),
+                        Positioned(bottom: 8, right: 8, child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.62), borderRadius: BorderRadius.circular(20)),
+                          child: const Text('تصفح الأعداد', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        )),
+                      ])),
+                      Padding(padding: const EdgeInsets.fromLTRB(10, 10, 10, 12), child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          if (description.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, height: 1.35, color: isDark ? Colors.white60 : Colors.black54)),
+                          ],
+                        ],
+                      )),
+                    ]),
+                  ),
+                );
+              }, childCount: filtered.length),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 14, childAspectRatio: 0.68,
+              ),
+            ),
+          ),
+      ]),
+    );
   }
 
   @override
@@ -216,6 +319,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildSectionContent(bool isDark) {
+    if (_selectedSection == 'magazines') return _buildMagazines(isDark);
+
     if (_selectedSection == 'school' && _selectedSchoolLevel == null) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
