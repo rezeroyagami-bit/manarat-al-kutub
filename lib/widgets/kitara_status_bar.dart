@@ -78,7 +78,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              RemoteConfigStore.instance.config.freeActivationMessage,
+              'أدخل رمز تفعيل النسخة الذهبية للاستفادة من المزايا الإضافية.',
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
             ),
