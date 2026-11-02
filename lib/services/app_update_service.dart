@@ -54,6 +54,10 @@ class AppUpdateService {
                   ),
                 );
 
+                final apkFile = File(apkPath);
+                if (!await apkFile.exists() || await apkFile.length() < 1024 * 1024) {
+                  throw Exception('INVALID_UPDATE_FILE');
+                }
                 if (!context.mounted) return;
                 setState(() {
                   downloading = false;
@@ -66,7 +70,7 @@ class AppUpdateService {
                   type: 'application/vnd.android.package-archive',
                 );
                 if (result.type != ResultType.done && context.mounted) {
-                  setState(() => error = 'تعذر بدء تثبيت التحديث.');
+                  setState(() => error = 'لم يبدأ مُثبّت Android. افتح الملف من التنزيلات واسمح بالتثبيت لهذا التطبيق عند الطلب.');
                 }
               } catch (_) {
                 if (context.mounted) {
@@ -84,7 +88,7 @@ class AppUpdateService {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('يمكنك تحديث التطبيق مباشرة دون حذف النسخة الحالية.'),
+                  Text('الإصدار الجديد: $latestVersion\nسيطلب Android تأكيد التثبيت. عند استخدام مفتاح التوقيع نفسه ستبقى بياناتك وإعداداتك محفوظة.'),
                   if (downloading) ...[
                     const SizedBox(height: 18),
                     LinearProgressIndicator(value: progress),
@@ -133,18 +137,20 @@ class AppUpdateService {
 
       final data = response.data as Map<String, dynamic>;
       final tag = (data['tag_name'] ?? '').toString().trim();
-      final latestBuild = int.tryParse(tag.replaceFirst(RegExp(r'^v'), ''));
+      final latestBuild = int.tryParse(tag.replaceFirst(RegExp(r'^v', caseSensitive: false), ''));
       if (latestBuild == null || latestBuild <= currentBuild) return null;
 
       final assets = (data['assets'] as List?) ?? const [];
-      final hasApk = assets.any(
-        (asset) => (asset as Map<String, dynamic>)['name'] == 'kitara.apk',
+      final apkAsset = assets.cast<Map<String, dynamic>?>().firstWhere(
+        (asset) => asset?['name'] == 'kitara.apk',
+        orElse: () => null,
       );
-      if (!hasApk) return null;
+      if (apkAsset == null || (apkAsset['browser_download_url'] ?? '').toString().isEmpty) return null;
 
       return {
         'version': latestBuild.toString(),
         'downloadUrl': _updateProxyUrl,
+        'releaseUrl': (data['html_url'] ?? '').toString(),
       };
     } catch (_) {
       return null;
