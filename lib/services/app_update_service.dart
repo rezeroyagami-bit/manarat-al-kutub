@@ -8,8 +8,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppUpdateService {
   static const _repoApi =
       'https://api.github.com/repos/rezeroyagami-bit/manarat-al-kutub/releases/latest';
-  static const _updateProxyUrl =
-      'https://gftlkxpzympplwluxmah.supabase.co/functions/v1/kitara-update';
 
   Future<void> showUpdateDialog(BuildContext context) async {
     final update = await _checkForUpdate();
@@ -26,6 +24,7 @@ class AppUpdateService {
         bool downloaded = false;
         double progress = 0;
         String? error;
+        String? downloadedApkPath;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -62,6 +61,7 @@ class AppUpdateService {
                 setState(() {
                   downloading = false;
                   downloaded = true;
+                  downloadedApkPath = apkPath;
                   progress = 1;
                 });
 
@@ -111,8 +111,15 @@ class AppUpdateService {
                   child: const Text('لاحقًا'),
                 ),
                 FilledButton(
-                  onPressed: downloading ? null : startDownload,
-                  child: Text(downloaded ? 'تثبيت' : 'تحديث الآن'),
+                  onPressed: downloading
+                      ? null
+                      : downloaded && downloadedApkPath != null
+                          ? () => OpenFilex.open(
+                                downloadedApkPath!,
+                                type: 'application/vnd.android.package-archive',
+                              )
+                          : startDownload,
+                  child: Text(downloaded ? 'إعادة فتح التثبيت' : 'تحديث الآن'),
                 ),
               ],
             );
@@ -141,15 +148,18 @@ class AppUpdateService {
       if (latestBuild == null || latestBuild <= currentBuild) return null;
 
       final assets = (data['assets'] as List?) ?? const [];
-      final apkAsset = assets.cast<Map<String, dynamic>?>().firstWhere(
-        (asset) => asset?['name'] == 'kitara.apk',
-        orElse: () => null,
-      );
+      Map<String, dynamic>? apkAsset;
+      for (final asset in assets) {
+        if (asset is Map<String, dynamic> && asset['name'] == 'kitara.apk') {
+          apkAsset = asset;
+          break;
+        }
+      }
       if (apkAsset == null || (apkAsset['browser_download_url'] ?? '').toString().isEmpty) return null;
 
       return {
         'version': latestBuild.toString(),
-        'downloadUrl': _updateProxyUrl,
+        'downloadUrl': apkAsset['browser_download_url'].toString(),
         'releaseUrl': (data['html_url'] ?? '').toString(),
       };
     } catch (_) {
