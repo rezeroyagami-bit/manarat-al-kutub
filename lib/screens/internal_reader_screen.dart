@@ -22,7 +22,11 @@ class InternalReaderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (_extension) {
       case 'pdf':
-        return _ReaderScaffold(title: title, child: SfPdfViewer.file(File(filePath)));
+        return _ReaderScaffold(title: title, child: SfPdfViewer.file(
+          File(filePath),
+          enableDoubleTapZoom: true,
+          maxZoomLevel: 5,
+        ));
       case 'doc':
       case 'docx':
         return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error')));
@@ -127,17 +131,17 @@ class _CbrReaderState extends State<_CbrReader> {
             if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
             return LayoutBuilder(
               builder: (context, constraints) => InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 6.0,
+                minScale: 1.0,
+                maxScale: 5.0,
                 panEnabled: true,
                 scaleEnabled: true,
-                boundaryMargin: const EdgeInsets.all(160),
-                clipBehavior: Clip.none,
-                constrained: true,
+                boundaryMargin: const EdgeInsets.all(80),
+                clipBehavior: Clip.hardEdge,
+                constrained: false,
                 child: SizedBox(
                   width: constraints.maxWidth,
                   height: constraints.maxHeight,
-                  child: Image.memory(snapshot.data!, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+                  child: Image.memory(snapshot.data!, fit: BoxFit.contain, filterQuality: FilterQuality.medium),
                 ),
               ),
             );
