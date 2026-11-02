@@ -2,12 +2,10 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:public_file_saver/public_file_saver.dart';
 
 import '../models/book.dart';
-import '../services/ad_block_detector.dart';
 import '../services/coins_service.dart';
 import '../services/downloads_service.dart';
 
@@ -19,97 +17,15 @@ class DownloadOptionsScreen extends StatefulWidget {
 }
 
 class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
-  RewardedAd? _rewardedAd;
-  bool _isLoadingAd = false;
   bool _isDownloading = false;
   bool _downloadCompleted = false;
-  bool _earnedReward = false;
   double _progress = 0.0;
   String _status = '';
 
-  static const String _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const String _proxyBaseUrl = 'https://kitara-download-proxy.vercel.app';
   final Dio _dio = Dio();
   final PublicFileSaver _fileSaver = PublicFileSaver();
   final DownloadsService _downloadsService = DownloadsService();
-
-  @override
-  void initState() { super.initState(); _prepareRewardedAd(); }
-
-  Future<void> _prepareRewardedAd() async {
-    try { await MobileAds.instance.initialize(); } catch (e) { debugPrint('AdMob initialization error: $e'); }
-    if (!mounted) return;
-    _loadRewardedAd();
-  }
-
-  void _loadRewardedAd() {
-    if (_isLoadingAd || _rewardedAd != null) return;
-    _isLoadingAd = true;
-    if (mounted) setState(() {});
-    RewardedAd.load(
-      adUnitId: _rewardedAdUnitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          _rewardedAd = ad; _isLoadingAd = false;
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose(); _rewardedAd = null;
-              if (_earnedReward) { _earnedReward = false; _startDownload(); } else { _loadRewardedAd(); }
-            },
-            onAdFailedToShowFullScreenContent: (ad, error) {
-              ad.dispose(); _rewardedAd = null; _earnedReward = false; _loadRewardedAd();
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تشغيل الإعلان. حاول مرة أخرى.')));
-            },
-          );
-          if (mounted) setState(() {});
-        },
-        onAdFailedToLoad: (error) {
-          _rewardedAd = null; _isLoadingAd = false;
-          debugPrint('REWARDED AD LOAD ERROR: ${error.code} ${error.message}');
-          if (mounted) setState(() {});
-        },
-      ),
-    );
-  }
-
-  Future<void> _showRewardedAd() async {
-    if (_isDownloading) return;
-    final blocked = await AdBlockDetector.isLikelyBlocked();
-    if (blocked) { _showAdBlockMessage(); return; }
-    if (_rewardedAd == null) {
-      if (mounted) setState(() => _status = 'جاري تجهيز الإعلان...');
-      _loadRewardedAd();
-      for (var i = 0; i < 20; i++) {
-        if (_rewardedAd != null || !mounted) break;
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-      if (!mounted) return;
-      if (_rewardedAd == null) {
-        setState(() => _status = '');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 5), content: Text('الإعلان لم يجهز بعد. تحقق من الإنترنت وحاول مرة أخرى.')));
-        _loadRewardedAd();
-        return;
-      }
-      setState(() => _status = '');
-    }
-    final ad = _rewardedAd;
-    if (ad == null) return;
-    _rewardedAd = null; _earnedReward = false;
-    ad.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) { _earnedReward = true; });
-  }
-
-  void _showAdBlockMessage() {
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('تم اكتشاف مانع الإعلانات'),
-        content: const Text('لا يمكن تحميل الملفات أثناء استخدام مانع الإعلانات.\n\nللمواصلة، يرجى تعطيل مانع الإعلانات ثم إعادة المحاولة.'),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('حسنًا'))],
-      ),
-    );
-  }
 
   String _sanitizeFileName(String value) {
     final cleaned = value.replaceAll(RegExp(r'''[\\/:*?"<>|]'''), '_').trim();
@@ -214,12 +130,11 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
             : 'تم التحميل بنجاح. حصلت على عملة واحدة. رصيدك: $newCoinBalance';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(coinText)));
       }
-      _loadRewardedAd();
     } on DioException catch (e) {
       await _cleanupTemporaryFile(temporaryFile); if (!mounted) return;
       final message = e.response?.statusCode != null && e.response?.data != null ? _friendlyProxyError(e.response) : 'تعذر الاتصال بخادم التحميل. تحقق من الإنترنت وحاول مرة أخرى.';
       setState(() { _isDownloading = false; _progress = 0.0; _status = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 8), content: Text('خطأ التحميل:\n$message'))); _loadRewardedAd();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 8), content: Text('خطأ التحميل:\n$message')));
     } catch (e, stackTrace) {
       debugPrint('DOWNLOAD ERROR: $e'); debugPrint('DOWNLOAD STACK TRACE:\n$stackTrace'); await _cleanupTemporaryFile(temporaryFile); if (!mounted) return;
       setState(() { _isDownloading = false; _progress = 0.0; _status = ''; });
@@ -228,8 +143,8 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
   }
 
   Future<void> _cleanupTemporaryFile(File? file) async { if (file == null) return; try { if (await file.exists()) await file.delete(); } catch (e) { debugPrint('CLEANUP ERROR: $e'); } }
-  void _startFreeDownload() { if (!_isDownloading) _showRewardedAd(); }
-  @override void dispose() { _rewardedAd?.dispose(); _dio.close(force: true); super.dispose(); }
+  void _startFreeDownload() { if (!_isDownloading) _startDownload(); }
+  @override void dispose() { _dio.close(force: true); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -249,10 +164,8 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
             if (!_isDownloading && !_downloadCompleted)
               ElevatedButton.icon(
                 onPressed: _startFreeDownload,
-                icon: _isLoadingAd
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.download_rounded),
-                label: Text(_isLoadingAd ? 'جاري تجهيز الإعلان...' : 'بدء التحميل'),
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('بدء التحميل'),
                 style: ElevatedButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(55)),
               ),
             if (_isDownloading || _downloadCompleted) ...[
