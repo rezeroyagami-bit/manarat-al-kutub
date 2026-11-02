@@ -1,9 +1,7 @@
 name: Build KITARA Android APK
 
 on:
-  push:
-    branches:
-      - main
+  # Temporarily disable automatic APK builds during Shorebird bootstrap.
   workflow_dispatch:
 
 permissions:
