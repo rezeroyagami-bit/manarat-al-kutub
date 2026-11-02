@@ -3,9 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/book.dart';
 import '../services/supabase_service.dart';
-import '../services/ad_block_detector.dart';
 import '../services/remote_config.dart';
-import 'ad_block_screen.dart';
 import 'downloads_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
@@ -35,8 +33,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final SupabaseService _supabaseService = SupabaseService();
   List<Book> books = [];
   bool loading = true;
-  bool adBlockCheckComplete = false;
-  bool adBlockDetected = false;
   bool exclusiveUnlocked = false;
   bool maintenanceMode = false;
   bool maintenanceAllowDownloads = true;
@@ -53,7 +49,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     RemoteConfigStore.instance.addListener(_onRemoteConfigChanged);
     _loadExclusiveState();
-    _loadBooksThenCheckAdBlocker();
+    _loadBooks();
   }
 
   @override
@@ -173,13 +169,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadBooksThenCheckAdBlocker() async {
+  Future<void> _loadBooks() async {
     if (mounted) {
       setState(() {
         loading = true;
         errorMessage = null;
-        adBlockCheckComplete = false;
-        adBlockDetected = false;
       });
     }
 
@@ -189,7 +183,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         if (!mounted) return;
         setState(() {
           loading = false;
-          adBlockCheckComplete = true;
         });
         return;
       }
@@ -201,19 +194,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         loading = true;
       });
 
-      final blocked = await AdBlockDetector.isLikelyBlocked();
       if (!mounted) return;
-      setState(() {
-        adBlockDetected = blocked;
-        adBlockCheckComplete = true;
-        loading = false;
-      });
+      setState(() { loading = false; });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         loading = false;
-        adBlockCheckComplete = true;
-        adBlockDetected = false;
         errorMessage = null;
       });
     }
@@ -248,7 +234,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    if (!adBlockCheckComplete || loading) return const _LoadingScreen();
+    if (loading) return const _LoadingScreen();
 
     if (maintenanceMode) {
       if (maintenanceAllowDownloads) {
@@ -264,8 +250,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       );
     }
 
-    if (adBlockDetected) return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
-    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
+    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooks);
 
     final config = RemoteConfigStore.instance.config;
     final screens = <Widget>[
