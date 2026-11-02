@@ -38,6 +38,7 @@ flutter:
     - assets/kitara_icon.png
     - assets/fonts/amiri-regular.ttf
     - assets/fonts/amiri-bold.ttf
+    - shorebird.yaml
 
   fonts:
     - family: Amiri
