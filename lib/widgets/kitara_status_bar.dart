@@ -73,7 +73,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
     final enteredCode = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('المحتوى الحصري'),
+        title: const Text('النسخة الذهبية'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
