@@ -1,0 +1,71 @@
+name: Initialize KITARA with Shorebird
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to initialize (do not use main yet)"
+        required: true
+        default: "kitara/combined-updates"
+
+permissions:
+  contents: write
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch }}
+          persist-credentials: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.0"
+          channel: stable
+
+      - name: Set up Shorebird CLI
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      - name: Verify required secret
+        run: |
+          test -n "$SHOREBIRD_TOKEN" || {
+            echo "::error::GitHub Actions secret SHOREBIRD_TOKEN is missing."
+            exit 1
+          }
+
+      - name: Generate Android project files
+        run: flutter create . --platforms=android
+
+      - name: Initialize Shorebird app
+        run: shorebird init --display-name "KITARA"
+
+      - name: Verify generated configuration
+        run: |
+          test -s shorebird.yaml
+          grep -E '^app_id:[[:space:]]*[0-9a-fA-F-]+' shorebird.yaml
+          grep -F 'shorebird.yaml' pubspec.yaml
+
+      - name: Commit Shorebird initialization
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add shorebird.yaml pubspec.yaml
+          git commit -m "Initialize Shorebird for KITARA"
+          git push origin "${{ inputs.target_branch }}"
