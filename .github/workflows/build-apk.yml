@@ -15,6 +15,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -132,7 +137,7 @@ jobs:
       - name: Analyze Dart library
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
       - name: Build KITARA APK
-        run: flutter build apk --release --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
+        run: flutter build apk --release --verbose --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
       - name: Sign KITARA APK with stable key
         env:
           KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
