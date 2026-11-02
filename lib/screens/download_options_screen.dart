@@ -138,7 +138,7 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
     } catch (e, stackTrace) {
       debugPrint('DOWNLOAD ERROR: $e'); debugPrint('DOWNLOAD STACK TRACE:\n$stackTrace'); await _cleanupTemporaryFile(temporaryFile); if (!mounted) return;
       setState(() { _isDownloading = false; _progress = 0.0; _status = ''; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 10), content: Text('خطأ التحميل:\n${e.toString().replaceFirst('Exception: ', '')}'))); _loadRewardedAd();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 10), content: Text('خطأ التحميل:\n${e.toString().replaceFirst('Exception: ', '')}')));;
     }
   }
 
