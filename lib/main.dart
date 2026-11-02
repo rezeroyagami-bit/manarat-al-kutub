@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/supabase_config.dart';
 import 'services/supabase_service.dart';
@@ -61,15 +60,6 @@ Future<void> main() async {
     initialWelcomeSeen: savedWelcomeSeen,
     supabaseReady: supabaseReady,
   ));
-  _initializeAdsSafely();
-}
-
-Future<void> _initializeAdsSafely() async {
-  try {
-    await MobileAds.instance.initialize();
-  } catch (e) {
-    debugPrint('AdMob initialization error: $e');
-  }
 }
 
 class KitaraApp extends StatefulWidget {
