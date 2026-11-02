@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/book.dart';
 import 'download_options_screen.dart';
@@ -15,14 +14,11 @@ class DetailsScreen extends StatefulWidget {
 
 class _DetailsScreenState extends State<DetailsScreen> {
   bool isFavorite = false;
-  bool _isUnlocked = false;
-  bool _checkingAccess = true;
 
   @override
   void initState() {
     super.initState();
     _loadFavorite();
-    _loadAccessState();
   }
 
   Future<void> _loadFavorite() async {
@@ -30,33 +26,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     final favorites = prefs.getStringList('favorite_books') ?? [];
     if (!mounted) return;
     setState(() => isFavorite = favorites.contains(widget.book.id.toString()));
-  }
-
-  Future<void> _loadAccessState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
-    if (!mounted) return;
-    setState(() {
-      _isUnlocked = unlocked;
-      _checkingAccess = false;
-    });
-  }
-
-  Future<void> _showActivationHint() async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('المحتوى الحصري'),
-        content: const Text(
-          'للوصول إلى تحميل هذا المحتوى، فعّل المحتوى الحصري باستخدام كود التشغيل من أعلى الصفحة.',
-          textAlign: TextAlign.right,
-          textDirection: TextDirection.rtl,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسنًا')),
-        ],
-      ),
-    );
   }
 
   void _openDownloadOptions() {
@@ -172,14 +141,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
             SizedBox(
               height: 54,
               child: ElevatedButton.icon(
-                onPressed: _checkingAccess
-                    ? null
-                    : (widget.book.isExclusive && !_isUnlocked ? _showActivationHint : _openDownloadOptions),
-                icon: Icon(widget.book.isExclusive && !_isUnlocked ? Icons.lock_outline_rounded : Icons.download_rounded),
-                label: Text(
-                  _checkingAccess
-                      ? 'جارٍ التحقق...'
-                      : (widget.book.isExclusive && !_isUnlocked ? 'تفعيل المحتوى الحصري' : 'خيارات التحميل'),
+                onPressed: _openDownloadOptions,
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('خيارات التحميل',
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
               ),
