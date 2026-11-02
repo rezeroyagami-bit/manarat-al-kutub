@@ -131,7 +131,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
             ),
             if (widget.book.isExclusive) ...[
               const SizedBox(height: 14),
-              Text('محتوى حصري', textAlign: TextAlign.center, style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('محتوى النسخة الذهبية', textAlign: TextAlign.center, style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 16)),
             ],
             const SizedBox(height: 24),
             const Text('عن المحتوى', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
