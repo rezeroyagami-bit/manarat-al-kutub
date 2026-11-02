@@ -183,7 +183,7 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
                 border: Border.all(color: accent.withValues(alpha: 0.48)),
               ),
               child: Text(
-                widget.exclusiveUnlocked ? config.exclusiveStatusText : config.freeStatusText,
+                widget.exclusiveUnlocked ? 'النسخة الذهبية مفعّلة' : 'تفعيل النسخة الذهبية',
                 style: TextStyle(
                   color: accent,
                   fontSize: 13,
