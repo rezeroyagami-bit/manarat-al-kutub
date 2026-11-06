@@ -44,8 +44,14 @@ jobs:
           test -n "$KITARA_KEY_PASSWORD" || { echo "KITARA_KEY_PASSWORD is missing"; exit 1; }
           test -n "$KITARA_KEY_ALIAS" || { echo "KITARA_KEY_ALIAS is missing"; exit 1; }
 
+      - name: Set up Flutter for Android project generation
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: stable
+
       - name: Generate Android project
-        run: shorebird flutter create . --platforms=android
+        run: flutter create . --platforms=android
 
       - name: Configure Android app
         run: |
