@@ -68,23 +68,22 @@ jobs:
           install_permission = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>'
           manifest_open = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
           if permission not in s:
-              s = s.replace(manifest_open, manifest_open + '\n    ' + permission)
+              s = s.replace(manifest_open, manifest_open + '\\n    ' + permission)
           if install_permission not in s:
-              s = s.replace(permission, permission + '\n    ' + install_permission)
+              s = s.replace(permission, permission + '\\n    ' + install_permission)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           p.write_text(s, encoding="utf-8")
 
-          # The generated Flutter template may default to an older compile SDK.
           gradle_files = [Path("android/app/build.gradle"), Path("android/app/build.gradle.kts")]
           gradle_file = next((f for f in gradle_files if f.exists()), None)
           if gradle_file is None:
               raise SystemExit("Android app Gradle file was not generated")
           g = gradle_file.read_text(encoding="utf-8")
-          g, count = re.subn(r'^\s*compileSdk\s*=.*$', '    compileSdk = 35', g, count=1, flags=re.MULTILINE)
+          g, count = re.subn(r'^\\s*compileSdk\\s*=.*$', '    compileSdk = 36', g, count=1, flags=re.MULTILINE)
           if count != 1:
-              raise SystemExit("Could not safely set Kotlin DSL compileSdk to 35")
+              raise SystemExit("Could not safely set Kotlin DSL compileSdk to 36")
           gradle_file.write_text(g, encoding="utf-8")
-          print(f"Configured {gradle_file} to compileSdk 35")
+          print(f"Configured {gradle_file} to compileSdk 36")
           PY
 
       - name: Install Android SDK platform
@@ -99,7 +98,8 @@ jobs:
           fi
           echo "Using sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
       - name: Download Amiri fonts
         run: |
           mkdir -p assets/fonts
@@ -122,8 +122,8 @@ jobs:
         env:
           KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
           KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
-          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
           KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
         run: |
           set -e
           mkdir -p "$RUNNER_TEMP/kitara-signing"
