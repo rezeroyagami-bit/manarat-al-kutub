@@ -14,6 +14,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,14 +29,20 @@ jobs:
       - name: Set up Shorebird
         uses: shorebirdtech/setup-shorebird@v1
         with:
-          shorebird-token: ${{ secrets.SHOREBIRD_TOKEN }}
+          cache: false
 
       - name: Verify signing secrets
         env:
           KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
+          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
+          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
         run: |
           test -n "$SHOREBIRD_TOKEN" || { echo "SHOREBIRD_TOKEN is missing"; exit 1; }
-          test -n "$KITARA_KEYSTORE_BASE64" || { echo "Stable Android signing key is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_BASE64" || { echo "KITARA_KEYSTORE_BASE64 is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_PASSWORD" || { echo "KITARA_KEYSTORE_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_PASSWORD" || { echo "KITARA_KEY_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_ALIAS" || { echo "KITARA_KEY_ALIAS is missing"; exit 1; }
 
       - name: Generate Android project
         run: shorebird flutter create . --platforms=android
