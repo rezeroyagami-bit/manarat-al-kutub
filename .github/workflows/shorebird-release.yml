@@ -82,7 +82,7 @@ jobs:
           dart run flutter_launcher_icons
 
       - name: Analyze Dart
-        run: shorebird flutter analyze lib --no-fatal-infos --no-fatal-warnings
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
       - name: Create Shorebird Android release APK
         run: |
