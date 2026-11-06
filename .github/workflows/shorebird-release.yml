@@ -79,7 +79,7 @@ jobs:
           if gradle_file is None:
               raise SystemExit("Android app Gradle file was not generated")
           g = gradle_file.read_text(encoding="utf-8")
-          g, count = re.subn(r'^\s*compileSdk\s*=.*, '    compileSdk = 36', g, count=1, flags=re.MULTILINE)
+          g, count = re.subn(r'^\s*compileSdk\s*=.*$', '    compileSdk = 36', g, count=1, flags=re.MULTILINE)
           if count != 1:
               raise SystemExit("Could not safely set Kotlin DSL compileSdk to 36")
           gradle_file.write_text(g, encoding="utf-8")
