@@ -24,12 +24,11 @@ class InternalReaderScreen extends StatelessWidget {
       case 'pdf':
         return _ReaderScaffold(title: title, child: SfPdfViewer.file(
           File(filePath),
-          enableDoubleTapZoom: true,
           maxZoomLevel: 5,
         ));
       case 'doc':
       case 'docx':
-        return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error')));
+        return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\\n$error')));
       case 'cbr':
         return _CbrReader(filePath: filePath, title: title);
       default:
@@ -90,8 +89,8 @@ class _CbrReaderState extends State<_CbrReader> {
   }
 
   int _naturalCompare(String a, String b) {
-    final aa = a.toLowerCase().split(RegExp(r'(\d+)'));
-    final bb = b.toLowerCase().split(RegExp(r'(\d+)'));
+    final aa = a.toLowerCase().split(RegExp(r'(\\d+)'));
+    final bb = b.toLowerCase().split(RegExp(r'(\\d+)'));
     for (var i = 0; i < aa.length && i < bb.length; i++) {
       final an = int.tryParse(aa[i]);
       final bn = int.tryParse(bb[i]);
@@ -117,7 +116,7 @@ class _CbrReaderState extends State<_CbrReader> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: const Center(child: CircularProgressIndicator()));
-    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\n$_error'));
+    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\\n$_error'));
     return Scaffold(
       appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [Center(child: Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: Text('${_currentPage + 1}/${_pages.length}')))]),
       body: PageView.builder(
