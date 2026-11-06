@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/book.dart';
 import 'download_options_screen.dart';
@@ -143,9 +144,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
               child: ElevatedButton.icon(
                 onPressed: _openDownloadOptions,
                 icon: const Icon(Icons.download_rounded),
-                label: const Text('خيارات التحميل',
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
+                label: const Text('خيارات التحميل', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
