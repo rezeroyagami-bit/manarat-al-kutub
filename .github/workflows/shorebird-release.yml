@@ -6,6 +6,10 @@ on:
       - kitara/combined-updates
     paths:
       - .github/workflows/shorebird-release.yml
+      - lib/**
+      - pubspec.yaml
+      - pubspec.lock
+      - assets/**
   workflow_dispatch:
 
 permissions:
