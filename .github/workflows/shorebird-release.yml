@@ -73,7 +73,25 @@ jobs:
               s = s.replace(permission, permission + '\n    ' + install_permission)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           p.write_text(s, encoding="utf-8")
+
+          # The generated Flutter template may default to an older compile SDK.
+          gradle_files = [Path("android/app/build.gradle"), Path("android/app/build.gradle.kts")]
+          gradle_file = next((f for f in gradle_files if f.exists()), None)
+          if gradle_file is None:
+              raise SystemExit("Android app Gradle file was not generated")
+          g = gradle_file.read_text(encoding="utf-8")
+          g, count = re.subn(r'compileSdk(?:Version)?\\s*(?:=\\s*)?(?:flutter\\.compileSdkVersion|[0-9]+)', 'compileSdk = 35', g, count=1)
+          if count != 1:
+              raise SystemExit("Could not safely set Android compileSdk to 35")
+          gradle_file.write_text(g, encoding="utf-8")
+          print(f"Configured {gradle_file} to compileSdk 35")
           PY
+
+      - name: Install Android SDK platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
 
       - name: Download Amiri fonts
         run: |
