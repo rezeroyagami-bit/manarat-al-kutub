@@ -78,8 +78,8 @@ jobs:
 
       - name: Install dependencies and generate icon
         run: |
-          shorebird flutter pub get
-          shorebird flutter pub run flutter_launcher_icons
+          flutter pub get
+          dart run flutter_launcher_icons
 
       - name: Analyze Dart
         run: shorebird flutter analyze lib --no-fatal-infos --no-fatal-warnings
