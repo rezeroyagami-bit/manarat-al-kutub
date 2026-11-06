@@ -51,7 +51,7 @@ jobs:
       - name: Set up Flutter for Android project generation
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.0'
+          flutter-version: '3.47.9'
           channel: stable
 
       - name: Generate Android project
@@ -66,10 +66,11 @@ jobs:
           s = p.read_text(encoding="utf-8")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
           install_permission = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>'
+          manifest_open = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
           if permission not in s:
-              s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    ' + permission)
+              s = s.replace(manifest_open, manifest_open + '\n    ' + permission)
           if install_permission not in s:
-              s = s.replace(permission, permission + '\\n    ' + install_permission)
+              s = s.replace(permission, permission + '\n    ' + install_permission)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           p.write_text(s, encoding="utf-8")
           PY
@@ -90,7 +91,7 @@ jobs:
 
       - name: Create Shorebird Android release APK
         run: |
-          shorebird release android --artifact apk --flutter-version=3.35.0 --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
+          shorebird release android --artifact apk --flutter-version=3.47.9 --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
 
       - name: Sign APK with KITARA's existing signing key
         env:
