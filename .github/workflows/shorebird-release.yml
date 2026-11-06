@@ -80,9 +80,9 @@ jobs:
           if gradle_file is None:
               raise SystemExit("Android app Gradle file was not generated")
           g = gradle_file.read_text(encoding="utf-8")
-          g, count = re.subn(r'compileSdk(?:Version)?\\s*(?:=\\s*)?(?:flutter\\.compileSdkVersion|[0-9]+)', 'compileSdk = 35', g, count=1)
+          g, count = re.subn(r'^\s*compileSdk\s*=.*$', '    compileSdk = 35', g, count=1, flags=re.MULTILINE)
           if count != 1:
-              raise SystemExit("Could not safely set Android compileSdk to 35")
+              raise SystemExit("Could not safely set Kotlin DSL compileSdk to 35")
           gradle_file.write_text(g, encoding="utf-8")
           print(f"Configured {gradle_file} to compileSdk 35")
           PY
