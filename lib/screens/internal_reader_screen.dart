@@ -216,23 +216,12 @@ class _CbrPage extends StatefulWidget {
 
 class _CbrPageState extends State<_CbrPage> {
   final TransformationController _transformController = TransformationController();
-  Offset? _doubleTapPosition;
   bool _zoomed = false;
 
-  void _handleDoubleTap() {
-    if (_zoomed) {
-      _transformController.value = Matrix4.identity();
-      _zoomed = false;
-      widget.onZoomChanged(false);
-      return;
-    }
-    const scale = 2.5;
-    final point = _doubleTapPosition ?? Offset.zero;
-    _transformController.value = Matrix4.identity()
-      ..translate(point.dx * (1 - scale), point.dy * (1 - scale))
-      ..scale(scale);
-    _zoomed = true;
-    widget.onZoomChanged(true);
+  void _resetZoom() {
+    _transformController.value = Matrix4.identity();
+    setState(() => _zoomed = false);
+    widget.onZoomChanged(false);
   }
 
   @override
@@ -241,11 +230,10 @@ class _CbrPageState extends State<_CbrPage> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) => GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onDoubleTapDown: (details) => _doubleTapPosition = details.localPosition,
-        onDoubleTap: _handleDoubleTap,
-        child: InteractiveViewer(
+      builder: (context, constraints) => Stack(
+        fit: StackFit.expand,
+        children: [
+          InteractiveViewer(
           transformationController: _transformController,
           minScale: 1.0,
           maxScale: 8.0,
@@ -262,7 +250,7 @@ class _CbrPageState extends State<_CbrPage> {
           },
           onInteractionEnd: (_) {
             final zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
-            _zoomed = zoomed;
+            if (_zoomed != zoomed && mounted) setState(() => _zoomed = zoomed);
             widget.onZoomChanged(zoomed);
           },
           child: SizedBox(
@@ -270,7 +258,21 @@ class _CbrPageState extends State<_CbrPage> {
             height: constraints.maxHeight,
             child: Image.memory(widget.bytes, fit: BoxFit.contain, filterQuality: FilterQuality.high),
           ),
-        ),
+          if (_zoomed)
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: Material(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(28),
+                child: IconButton(
+                  tooltip: 'إعادة الصفحة إلى الحجم الطبيعي',
+                  onPressed: _resetZoom,
+                  icon: const Icon(Icons.zoom_out_map_rounded, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
