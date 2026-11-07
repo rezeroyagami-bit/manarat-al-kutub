@@ -13,7 +13,7 @@ class DownloadsScreen extends StatefulWidget {
   State<DownloadsScreen> createState() => _DownloadsScreenState();
 }
 
-class _DownloadsScreenState extends State<DownloadsScreen> {
+class DownloadsScreenState extends State<DownloadsScreen> {
   final DownloadsService _service = DownloadsService();
   List<DownloadedBook> _downloads = [];
   bool _loading = true;
@@ -36,9 +36,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     _loadDownloads();
   }
 
+  int _loadRequest = 0;
+
+  /// Reloads the local download index whenever the Downloads tab is opened.
+  Future<void> refreshDownloads() => _loadDownloads();
+
   Future<void> _loadDownloads() async {
+    final request = ++_loadRequest;
     final downloads = await _service.getDownloads();
-    if (!mounted) return;
+    if (!mounted || request != _loadRequest) return;
     setState(() {
       _downloads = downloads;
       _loading = false;
