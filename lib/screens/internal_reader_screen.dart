@@ -115,6 +115,7 @@ class _CbrReader extends StatefulWidget {
 
 class _CbrReaderState extends State<_CbrReader> {
   final PageController _pageController = PageController();
+  final Map<String, Future<Uint8List>> _pageFutures = {};
   List<String> _pages = [];
   Archive? _archive;
   bool _loading = true;
@@ -143,8 +144,8 @@ class _CbrReaderState extends State<_CbrReader> {
   }
 
   int _naturalCompare(String a, String b) {
-    final aa = a.toLowerCase().split(RegExp(r'(\d+)'));
-    final bb = b.toLowerCase().split(RegExp(r'(\d+)'));
+    final aa = a.toLowerCase().split(RegExp(r'(\\d+)'));
+    final bb = b.toLowerCase().split(RegExp(r'(\\d+)'));
     for (var i = 0; i < aa.length && i < bb.length; i++) {
       final an = int.tryParse(aa[i]);
       final bn = int.tryParse(bb[i]);
@@ -175,7 +176,7 @@ class _CbrReaderState extends State<_CbrReader> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: const Center(child: CircularProgressIndicator()));
-    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\n$_error'));
+    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\\n$_error'));
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -193,14 +194,21 @@ class _CbrReaderState extends State<_CbrReader> {
         physics: _pageZoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
         itemCount: _pages.length,
         onPageChanged: (index) => setState(() { _currentPage = index; _pageZoomed = false; }),
-        itemBuilder: (context, index) => FutureBuilder<Uint8List>(
-          future: _readPage(_pages[index]),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-            if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
-            return _CbrPage(key: ValueKey(_pages[index]), bytes: snapshot.data!, onZoomChanged: _onZoomChanged);
-          },
-        ),
+        itemBuilder: (context, index) {
+          final path = _pages[index];
+          // Keep each page's decoding future stable across parent rebuilds.
+          // Recreating it here used to reload the image and dispose the zoom
+          // controller whenever the PageView physics changed after a pinch.
+          final pageFuture = _pageFutures.putIfAbsent(path, () => _readPage(path));
+          return FutureBuilder<Uint8List>(
+            future: pageFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+              if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
+              return _CbrPage(key: ValueKey(path), bytes: snapshot.data!, onZoomChanged: _onZoomChanged);
+            },
+          );
+        },
       ),
     );
   }
@@ -256,7 +264,7 @@ class _CbrPageState extends State<_CbrPage> {
           child: SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
-            child: Image.memory(widget.bytes, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+            child: Image.memory(widget.bytes, fit: BoxFit.contain, filterQuality: FilterQuality.medium),
           ),
           ),
           if (_zoomed)
