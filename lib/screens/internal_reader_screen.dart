@@ -258,6 +258,7 @@ class _CbrPageState extends State<_CbrPage> {
             height: constraints.maxHeight,
             child: Image.memory(widget.bytes, fit: BoxFit.contain, filterQuality: FilterQuality.high),
           ),
+          ),
           if (_zoomed)
             Positioned(
               right: 16,
