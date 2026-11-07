@@ -223,7 +223,7 @@ class _LoadingScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(width: 76, height: 76, decoration: BoxDecoration(color: green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: green)),
+            Container(width: 76, height: 76, decoration: BoxDecoration(color: green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: Icon(Icons.menu_book_rounded, size: 38, color: green)),
             const SizedBox(height: 22),
             const Text('كِتارا', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
@@ -252,7 +252,7 @@ class _ErrorScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(width: 90, height: 90, decoration: BoxDecoration(color: green.withValues(alpha: 0.10), shape: BoxShape.circle), child: const Icon(Icons.cloud_off_rounded, size: 46, color: green)),
+            Container(width: 90, height: 90, decoration: BoxDecoration(color: green.withValues(alpha: 0.10), shape: BoxShape.circle), child: Icon(Icons.cloud_off_rounded, size: 46, color: green)),
             const SizedBox(height: 24),
             const Text('تعذر تحميل المحتوى', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
@@ -283,7 +283,7 @@ class _MaintenanceLockedScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.build_circle_outlined, size: 70, color: green),
+                Icon(Icons.build_circle_outlined, size: 70, color: green),
                 const SizedBox(height: 22),
                 Text(title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 26, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
