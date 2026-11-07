@@ -390,17 +390,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           )
                         : Icon(Icons.menu_book_rounded, size: 40, color: accent),
                   ),
-                  if (book.isExclusive)
-                    const Positioned(
-                      top: -6,
-                      right: -6,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Padding(
-                          padding: EdgeInsets.all(3),
-                          child: Icon(Icons.workspace_premium_rounded, color: Color(0xFFF28C28), size: 22),
-                        ),
-                      ),
+),
                     ),
                 ],
               ),
