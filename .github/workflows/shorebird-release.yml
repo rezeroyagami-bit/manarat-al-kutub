@@ -209,7 +209,19 @@ jobs:
         run: |
           shorebird release android --artifact apk --target-platform android-arm64 --flutter-version=3.47.9
 
-      - name: Enforce APK size below 30 MB\n        run: |\n          APK="build/app/outputs/flutter-apk/app-release.apk"\n          test -s "$APK"\n          SIZE=$(stat -c%s "$APK")\n          echo "APK size: $SIZE bytes"\n          if [ "$SIZE" -ge 30000000 ]; then echo "APK exceeds the 30 MB target"; exit 1; fi\n\n      - name: Sign APK with KITARA signing key
+      - name: Enforce APK size below 30 MB
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          SIZE=$(stat -c%s "$APK")
+          echo "APK size: $SIZE bytes"
+          if [ "$SIZE" -ge 30000000 ]; then
+            echo "APK exceeds the 30 MB target"
+            exit 1
+          fi
+
+      - name: Sign APK with KITARA signing key
         env:
           KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
           KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
