@@ -190,7 +190,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   Widget _buildNavigationBar(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
-    final accent = config.exclusivePrimaryColor;
+    const accent = Color(0xFFF28C28);
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
@@ -229,7 +229,7 @@ class _LoadingScreen extends StatelessWidget {
             const SizedBox(height: 4),
             const Text('1.0.0', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w400)),
             const SizedBox(height: 14),
-            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
+            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
             const SizedBox(height: 14),
             Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey)),
           ],
