@@ -32,6 +32,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install Android SDK 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
@@ -79,7 +81,7 @@ jobs:
               raise SystemExit("Unexpected Android manifest format")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
           if permission not in s:
-              s = s.replace(marker, marker + '\n    ' + permission, 1)
+              s = s.replace(marker, marker + '\\n    ' + permission, 1)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           manifest.write_text(s, encoding="utf-8")
 
@@ -89,9 +91,9 @@ jobs:
               raise SystemExit("No Android app Gradle file was generated")
           g = gradle.read_text(encoding="utf-8")
           patterns = [
-              (r'(?m)^(\s*compileSdk\s*=\s*).*$', r'\g<1>36'),
-              (r'(?m)^(\s*compileSdkVersion\s+).*$', r'\g<1>36'),
-              (r'(?m)^(\s*compileSdk\s+).*$', r'\g<1>36'),
+              (r'(?m)^(\\s*compileSdk\\s*=\\s*).*$', r'\\g<1>36'),
+              (r'(?m)^(\\s*compileSdkVersion\\s+).*$', r'\\g<1>36'),
+              (r'(?m)^(\\s*compileSdk\\s+).*$', r'\\g<1>36'),
           ]
           for pattern, replacement in patterns:
               g, count = re.subn(pattern, replacement, g, count=1)
