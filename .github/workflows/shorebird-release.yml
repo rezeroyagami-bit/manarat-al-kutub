@@ -166,10 +166,42 @@ jobs:
           PY
 
       - name: Verify Android API 36 configuration
+        shell: bash
         run: |
-          set -e
-          grep -nE "compileSdk(Version)?[ =]+36" android/app/build.gradle.kts android/app/build.gradle 2>/dev/null
-          grep -R -nE "compileSdk(Version)?[ =]+36" "$HOME/.pub-cache/hosted/pub.dev/syncfusion_flutter_pdfviewer-"*/android/build.gradle* 
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          checks = [
+              Path("android/app/build.gradle.kts"),
+              Path("android/app/build.gradle"),
+          ]
+          app = next((p for p in checks if p.exists()), None)
+          if app is None:
+              raise SystemExit("Android app Gradle file is missing")
+
+          def has_api_36(path):
+              text = path.read_text(encoding="utf-8")
+              return re.search(r"(?m)^\\s*compileSdk(?:Version)?\\s*(?:=\\s*)?36\\b", text) is not None
+
+          if not has_api_36(app):
+              raise SystemExit(f"App compile SDK is not 36 in {app}")
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          plugins = list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle")) + list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle.kts"))
+          if not plugins:
+              raise SystemExit("Syncfusion PDF Viewer Gradle file was not found")
+
+          for plugin in plugins:
+              text = plugin.read_text(encoding="utf-8")
+              matches = [line.strip() for line in text.splitlines() if "compileSdk" in line]
+              print(f"{plugin}: {matches}")
+              if not has_api_36(plugin):
+                  raise SystemExit(f"Syncfusion compile SDK is not explicitly 36 in {plugin}")
+
+          print("Verified Android app and Syncfusion compile SDK 36")
+          PY
 
       - name: Analyze Dart
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
