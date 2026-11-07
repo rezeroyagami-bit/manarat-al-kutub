@@ -144,11 +144,9 @@ class _KitaraAppState extends State<KitaraApp> {
   }
 
   ThemeData _theme(Brightness brightness, KitaraRemoteConfig config) {
-    final accent = isExclusiveTheme ? config.exclusivePrimaryColor : config.freePrimaryColor;
+    const accent = Color(0xFFF28C28);
     final dark = brightness == Brightness.dark;
-    final background = isExclusiveTheme
-        ? (dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7))
-        : (dark ? const Color(0xFF101810) : const Color(0xFFF7FBF7));
+    final background = dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7);
 
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
