@@ -52,6 +52,24 @@ jobs:
       - name: Generate Android project
         run: flutter create . --platforms=android
 
+      - name: Ensure Android internet permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if not manifest.exists():
+              raise SystemExit("AndroidManifest.xml was not generated")
+          source = manifest.read_text(encoding="utf-8")
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if permission not in source:
+              if marker not in source:
+                  raise SystemExit("Unexpected Android manifest format")
+              source = source.replace(marker, marker + "\\n    " + permission, 1)
+              manifest.write_text(source, encoding="utf-8")
+          print("Verified Android INTERNET permission")
+          PY
+
       - name: Configure Android compile SDK 36
         run: |
           python3 - <<'PY'
