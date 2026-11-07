@@ -183,7 +183,7 @@ jobs:
 
           def has_api_36(path):
               text = path.read_text(encoding="utf-8")
-              return re.search(r"(?m)^\\s*compileSdk(?:Version)?\\s*(?:=\\s*)?36\\b", text) is not None
+              return re.search(r"(?m)^\s*compileSdk(?:Version)?\s*(?:=\s*)?36\b", text) is not None
 
           if not has_api_36(app):
               raise SystemExit(f"App compile SDK is not 36 in {app}")
