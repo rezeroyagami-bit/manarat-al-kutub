@@ -65,7 +65,7 @@ jobs:
           if permission not in source:
               if marker not in source:
                   raise SystemExit("Unexpected Android manifest format")
-              source = source.replace(marker, marker + "\\n    " + permission, 1)
+              source = source.replace(marker, marker + "\n    " + permission, 1)
               manifest.write_text(source, encoding="utf-8")
           print("Verified Android INTERNET permission")
           PY
@@ -138,4 +138,4 @@ jobs:
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
       - name: Publish Shorebird patch to stable
-        run: shorebird patch android --release-version 1.0.24+24 --track stable --allow-asset-diffs
+        run: shorebird patch android --release-version 1.0.25+25 --track stable --allow-asset-diffs
