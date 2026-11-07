@@ -11,7 +11,7 @@ import 'screens/app_shell.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool savedDarkMode = false;
-  bool savedExclusiveTheme = false;
+  bool savedExclusiveTheme = true;
   bool savedWelcomeSeen = false;
   bool supabaseReady = false;
 
@@ -29,27 +29,9 @@ Future<void> main() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     savedDarkMode = prefs.getBool('dark_mode') ?? false;
-    savedExclusiveTheme = prefs.getBool('exclusive_content_unlocked') ?? false;
+    savedExclusiveTheme = true;
     savedWelcomeSeen = prefs.getBool('welcome_seen') ?? false;
 
-    if (savedExclusiveTheme && supabaseReady) {
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (savedCode == null || savedCode.trim().isEmpty) {
-        savedExclusiveTheme = false;
-        await prefs.setBool('exclusive_content_unlocked', false);
-      } else {
-        try {
-          final valid = await SupabaseService().validateKitaraActivationCode(savedCode);
-          if (!valid) {
-            savedExclusiveTheme = false;
-            await prefs.setBool('exclusive_content_unlocked', false);
-            await prefs.remove('exclusive_activation_code');
-          }
-        } catch (e) {
-          debugPrint('Activation validation on startup failed: $e');
-        }
-      }
-    }
   } catch (e) {
     debugPrint('SharedPreferences error: $e');
   }
@@ -298,7 +280,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
-    final green = config.freePrimaryColor;
+    final green = config.exclusivePrimaryColor;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
