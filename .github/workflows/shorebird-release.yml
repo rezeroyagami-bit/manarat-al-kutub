@@ -81,7 +81,7 @@ jobs:
               raise SystemExit("Unexpected Android manifest format")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
           if permission not in s:
-              s = s.replace(marker, marker + "\\n    " + permission, 1)
+              s = s.replace(marker, marker + "\n    " + permission, 1)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
           manifest.write_text(s, encoding="utf-8")
 
@@ -91,9 +91,9 @@ jobs:
               raise SystemExit("No Android app Gradle file was generated")
           g = gradle.read_text(encoding="utf-8")
           patterns = [
-              (r'(?m)^(\\s*compileSdk\\s*=\\s*).*$', r'\\g<1>36'),
-              (r'(?m)^(\\s*compileSdkVersion\\s+).*$', r'\\g<1>36'),
-              (r'(?m)^(\\s*compileSdk\\s+).*$', r'\\g<1>36'),
+              (r'(?m)^(\s*compileSdk\s*=\s*).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdkVersion\s+).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdk\s+).*$', r'\g<1>36'),
           ]
           count = 0
           for pattern, replacement in patterns:
@@ -110,15 +110,15 @@ jobs:
       - name: Show generated Android config
         run: |
           grep -nE "applicationId|namespace|compileSdk|minSdk|targetSdk" android/app/build.gradle.kts || true
-          grep -n "uses-permission\\|android:label" android/app/src/main/AndroidManifest.xml || true
+          grep -n "uses-permission\|android:label" android/app/src/main/AndroidManifest.xml || true
 
       - name: Download Amiri fonts
         run: |
           set -e
           mkdir -p assets/fonts
-          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf \\
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf \
             || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
-          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf \\
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf \
             || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
 
       - name: Install dependencies and generate icon
