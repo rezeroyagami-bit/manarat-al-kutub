@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/book.dart';
 import '../services/supabase_service.dart';
@@ -32,7 +31,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final SupabaseService _supabaseService = SupabaseService();
   List<Book> books = [];
   bool loading = true;
-  bool exclusiveUnlocked = false;
+  bool exclusiveUnlocked = true;
   bool maintenanceMode = false;
   bool maintenanceAllowDownloads = true;
   bool _checkingActivation = false;
@@ -47,7 +46,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     RemoteConfigStore.instance.addListener(_onRemoteConfigChanged);
-    _loadExclusiveState();
     _loadBooks();
   }
 
@@ -65,83 +63,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _revalidateActivation();
       _checkMaintenance();
       RemoteConfigStore.instance.load();
     }
-  }
-
-  Future<void> _loadExclusiveState() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
-        if (!mounted) return;
-        setState(() => exclusiveUnlocked = false);
-        return;
-      }
-
-      try {
-        final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
-        if (!valid) {
-          await _clearExclusiveState();
-          return;
-        }
-      } catch (_) {}
-
-      if (!mounted) return;
-      setState(() => exclusiveUnlocked = true);
-    } catch (_) {}
-  }
-
-  Future<void> _revalidateActivation() async {
-    if (_checkingActivation) return;
-    _checkingActivation = true;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
-        if (mounted && exclusiveUnlocked) {
-          setState(() => exclusiveUnlocked = false);
-          await widget.onExclusiveDeactivated?.call();
-        }
-        return;
-      }
-
-      final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
-      if (!valid) {
-        await _clearExclusiveState();
-      } else if (mounted && !exclusiveUnlocked) {
-        setState(() => exclusiveUnlocked = true);
-        await widget.onExclusiveActivated?.call(savedCode);
-      }
-    } catch (_) {} finally {
-      _checkingActivation = false;
-    }
-  }
-
-  Future<void> _clearExclusiveState() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('exclusive_content_unlocked', false);
-      await prefs.remove('exclusive_activation_code');
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() => exclusiveUnlocked = false);
-    await widget.onExclusiveDeactivated?.call();
-  }
-
-  Future<void> _activateExclusiveTheme(String code) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('exclusive_content_unlocked', true);
-      await prefs.setString('exclusive_activation_code', code.trim());
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() => exclusiveUnlocked = true);
-    await widget.onExclusiveActivated?.call(code.trim());
   }
 
   Future<void> _checkMaintenance({bool showLoading = false}) async {
@@ -266,7 +190,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   Widget _buildNavigationBar(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
-    final accent = exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;
+    final accent = config.exclusivePrimaryColor;
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
@@ -293,7 +217,7 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Scaffold(
       body: Center(
         child: Column(
@@ -322,7 +246,7 @@ class _ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Scaffold(
       body: Center(
         child: Padding(
@@ -349,7 +273,7 @@ class _MaintenanceLockedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
