@@ -10,7 +10,7 @@ class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({super.key});
 
   @override
-  State<DownloadsScreen> createState() => _DownloadsScreenState();
+  State<DownloadsScreen> createState() => DownloadsScreenState();
 }
 
 class DownloadsScreenState extends State<DownloadsScreen> {
