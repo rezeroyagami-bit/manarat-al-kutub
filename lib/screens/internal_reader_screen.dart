@@ -255,11 +255,10 @@ class _CbrPageState extends State<_CbrPage> {
           clipBehavior: Clip.hardEdge,
           constrained: true,
           onInteractionUpdate: (_) {
-            final zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
-            if (_zoomed != zoomed) {
-              _zoomed = zoomed;
-              widget.onZoomChanged(zoomed);
-            }
+            // Track the scale locally while fingers are moving. Do not rebuild the
+            // parent PageView during an active pinch gesture: changing its physics
+            // mid-gesture can leave the reader stuck after zooming back out.
+            _zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
           },
           onInteractionEnd: (_) {
             final zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
