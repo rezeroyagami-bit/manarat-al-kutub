@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:public_file_saver/public_file_saver.dart';
 
 import '../models/book.dart';
-import '../services/coins_service.dart';
 import '../services/downloads_service.dart';
 
 class DownloadOptionsScreen extends StatefulWidget {
@@ -121,14 +120,12 @@ class _DownloadOptionsScreenState extends State<DownloadOptionsScreen> {
       final savedFile = await _fileSaver.saveBytes(bytes: await temporaryFile.readAsBytes(), fileName: fileName, mimeType: _getMimeType(fileName));
       if (savedFile == null || !savedFile.isSuccess) throw Exception('PUBLIC_SAVE_FAILED');
       await _downloadsService.copyToAppDownloads(source: temporaryFile, book: widget.book, fileName: fileName);
-      final newCoinBalance = await CoinsService().awardDownloadCoin();
       try { await temporaryFile.delete(); } catch (_) {}
       if (mounted) {
         setState(() { _progress = 1.0; _isDownloading = false; _downloadCompleted = true; _status = 'اكتمل التحميل'; });
-        final coinText = newCoinBalance == null
-            ? 'تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.'
-            : 'تم التحميل بنجاح. حصلت على عملة واحدة. رصيدك: $newCoinBalance';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(coinText)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تحميل الملف وإضافته إلى «تنزيلاتي» في KITARA.')),
+        );
       }
     } on DioException catch (e) {
       await _cleanupTemporaryFile(temporaryFile); if (!mounted) return;
