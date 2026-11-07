@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/supabase_config.dart';
-import 'services/supabase_service.dart';
 import 'services/remote_config.dart';
 import 'screens/app_shell.dart';
 
