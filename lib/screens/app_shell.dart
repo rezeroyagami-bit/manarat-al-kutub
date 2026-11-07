@@ -40,6 +40,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   String maintenanceMessage = 'نعمل حاليًا على تحسين كِتارا وتحديث المحتوى. يرجى المحاولة لاحقًا.';
   String? errorMessage;
   int currentIndex = 0;
+  final GlobalKey<DownloadsScreenState> _downloadsKey = GlobalKey<DownloadsScreenState>();
 
   @override
   void initState() {
@@ -179,7 +180,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       HomeScreen(books: books, onTheme: widget.onThemeToggle),
       LibraryScreen(books: books),
       FavoritesScreen(books: books, supabaseService: _supabaseService),
-      const DownloadsScreen(),
+      DownloadsScreen(key: _downloadsKey),
     ];
 
     return Scaffold(
@@ -199,6 +200,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       shadowColor: Colors.black26,
       indicatorColor: Colors.white.withValues(alpha: 0.20),
       onDestinationSelected: (index) {
+        if (index == 3) _downloadsKey.currentState?.refreshDownloads();
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
       },
