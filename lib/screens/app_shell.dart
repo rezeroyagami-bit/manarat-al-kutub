@@ -8,7 +8,6 @@ import 'downloads_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'library_screen.dart';
-import '../widgets/kitara_status_bar.dart';
 import 'maintenance_screen.dart';
 
 class AppShell extends StatefulWidget {
@@ -252,7 +251,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
     if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooks);
 
-    final config = RemoteConfigStore.instance.config;
     final screens = <Widget>[
       HomeScreen(books: books, onTheme: widget.onThemeToggle),
       LibraryScreen(books: books),
@@ -261,23 +259,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 20, 12, 7),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: KitaraStatusBar(
-                exclusiveUnlocked: exclusiveUnlocked,
-                onActivated: _activateExclusiveTheme,
-              ),
-            ),
-          ),
-          Expanded(
-            child: IndexedStack(index: currentIndex, children: screens),
-          ),
-        ],
-      ),
+      body: IndexedStack(index: currentIndex, children: screens),
       bottomNavigationBar: _buildNavigationBar(context),
     );
   }
