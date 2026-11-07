@@ -126,6 +126,51 @@ jobs:
           flutter pub get
           dart run flutter_launcher_icons
 
+      - name: Force Android plugin modules to compile with API 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          if not cache.exists():
+              raise SystemExit(f"Pub cache not found: {cache}")
+
+          gradle_files = list(cache.glob("*/android/build.gradle")) + list(cache.glob("*/android/build.gradle.kts"))
+          patched = []
+          pattern = re.compile(r"(?m)^(\\s*)(compileSdkVersion|compileSdk)\\s*(?:=\\s*)?.*$")
+
+          for path in gradle_files:
+              source = path.read_text(encoding="utf-8")
+              is_kts = path.name.endswith(".kts")
+              replacement = lambda m: m.group(1) + ("compileSdk = 36" if is_kts else "compileSdkVersion 36")
+              updated, count = pattern.subn(replacement, source)
+              if count:
+                  path.write_text(updated, encoding="utf-8")
+                  patched.append(str(path))
+
+          syncfusion = [p for p in patched if p.split("/")[-3].startswith("syncfusion_flutter_pdfviewer-")]
+          if not syncfusion:
+              candidates = list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle*"))
+              raise SystemExit(
+                  "Syncfusion PDF Viewer Android Gradle file was not patched. "
+                  f"Found candidates: {[str(p) for p in candidates]}"
+              )
+
+          print(f"Patched {len(patched)} Android plugin Gradle files to compileSdk 36")
+          for path in syncfusion:
+              print(f"Verified Syncfusion API 36: {path}")
+          PY
+
+      - name: Verify Android API 36 configuration
+        run: |
+          set -e
+          grep -nE "compileSdk(Version)?[ =]+36" android/app/build.gradle.kts android/app/build.gradle 2>/dev/null
+          grep -R -nE "compileSdk(Version)?[ =]+36" "$HOME/.pub-cache/hosted/pub.dev/syncfusion_flutter_pdfviewer-"*/android/build.gradle* 
+
       - name: Analyze Dart
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
