@@ -63,13 +63,6 @@ jobs:
           if install_permission not in s:
               s = s.replace(permission, permission + '\n    ' + install_permission)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
-          admob_metadata = '''
-              <meta-data
-                  android:name="com.google.android.gms.ads.APPLICATION_ID"
-                  android:value="ca-app-pub-6792981270949925~9173891785"/>
-          '''
-          if "com.google.android.gms.ads.APPLICATION_ID" not in s:
-              s = s.replace('</application>', admob_metadata + '\n    </application>', 1)
           p.write_text(s, encoding="utf-8")
           PY
       - name: Get dependencies

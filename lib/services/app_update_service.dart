@@ -8,8 +8,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppUpdateService {
   static const _repoApi =
       'https://api.github.com/repos/rezeroyagami-bit/manarat-al-kutub/releases/latest';
-  static const _updateProxyUrl =
-      'https://gftlkxpzympplwluxmah.supabase.co/functions/v1/kitara-update';
 
   Future<void> showUpdateDialog(BuildContext context) async {
     final update = await _checkForUpdate();
@@ -26,6 +24,7 @@ class AppUpdateService {
         bool downloaded = false;
         double progress = 0;
         String? error;
+        String? downloadedApkPath;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -54,10 +53,15 @@ class AppUpdateService {
                   ),
                 );
 
+                final apkFile = File(apkPath);
+                if (!await apkFile.exists() || await apkFile.length() < 1024 * 1024) {
+                  throw Exception('INVALID_UPDATE_FILE');
+                }
                 if (!context.mounted) return;
                 setState(() {
                   downloading = false;
                   downloaded = true;
+                  downloadedApkPath = apkPath;
                   progress = 1;
                 });
 
@@ -66,7 +70,7 @@ class AppUpdateService {
                   type: 'application/vnd.android.package-archive',
                 );
                 if (result.type != ResultType.done && context.mounted) {
-                  setState(() => error = 'تعذر بدء تثبيت التحديث.');
+                  setState(() => error = 'لم يبدأ مُثبّت Android. افتح الملف من التنزيلات واسمح بالتثبيت لهذا التطبيق عند الطلب.');
                 }
               } catch (_) {
                 if (context.mounted) {
@@ -84,7 +88,7 @@ class AppUpdateService {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('يمكنك تحديث التطبيق مباشرة دون حذف النسخة الحالية.'),
+                  Text('الإصدار الجديد: $latestVersion\nسيطلب Android تأكيد التثبيت. عند استخدام مفتاح التوقيع نفسه ستبقى بياناتك وإعداداتك محفوظة.'),
                   if (downloading) ...[
                     const SizedBox(height: 18),
                     LinearProgressIndicator(value: progress),
@@ -107,8 +111,15 @@ class AppUpdateService {
                   child: const Text('لاحقًا'),
                 ),
                 FilledButton(
-                  onPressed: downloading ? null : startDownload,
-                  child: Text(downloaded ? 'تثبيت' : 'تحديث الآن'),
+                  onPressed: downloading
+                      ? null
+                      : downloaded && downloadedApkPath != null
+                          ? () => OpenFilex.open(
+                                downloadedApkPath!,
+                                type: 'application/vnd.android.package-archive',
+                              )
+                          : startDownload,
+                  child: Text(downloaded ? 'إعادة فتح التثبيت' : 'تحديث الآن'),
                 ),
               ],
             );
@@ -133,18 +144,23 @@ class AppUpdateService {
 
       final data = response.data as Map<String, dynamic>;
       final tag = (data['tag_name'] ?? '').toString().trim();
-      final latestBuild = int.tryParse(tag.replaceFirst(RegExp(r'^v'), ''));
+      final latestBuild = int.tryParse(tag.replaceFirst(RegExp(r'^v', caseSensitive: false), ''));
       if (latestBuild == null || latestBuild <= currentBuild) return null;
 
       final assets = (data['assets'] as List?) ?? const [];
-      final hasApk = assets.any(
-        (asset) => (asset as Map<String, dynamic>)['name'] == 'kitara.apk',
-      );
-      if (!hasApk) return null;
+      Map<String, dynamic>? apkAsset;
+      for (final asset in assets) {
+        if (asset is Map<String, dynamic> && asset['name'] == 'kitara.apk') {
+          apkAsset = asset;
+          break;
+        }
+      }
+      if (apkAsset == null || (apkAsset['browser_download_url'] ?? '').toString().isEmpty) return null;
 
       return {
         'version': latestBuild.toString(),
-        'downloadUrl': _updateProxyUrl,
+        'downloadUrl': apkAsset['browser_download_url'].toString(),
+        'releaseUrl': (data['html_url'] ?? '').toString(),
       };
     } catch (_) {
       return null;

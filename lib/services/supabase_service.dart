@@ -59,22 +59,6 @@ class SupabaseService {
     return response == true;
   }
 
-  Future<int> getCoinBalance(String deviceId) async {
-    final response = await _client.rpc(
-      'get_kitara_coin_balance',
-      params: {'p_device_id': deviceId},
-    );
-    return response is int ? response : int.tryParse(response.toString()) ?? 0;
-  }
-
-  Future<int> awardCoin(String deviceId) async {
-    final response = await _client.rpc(
-      'award_kitara_coin',
-      params: {'p_device_id': deviceId},
-    );
-    return response is int ? response : int.tryParse(response.toString()) ?? 0;
-  }
-
   Future<List<MagazineIssue>> getMagazineIssues(String magazineId) async {
     final response = await _client
         .from('magazine_issues')

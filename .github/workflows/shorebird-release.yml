@@ -1,0 +1,245 @@
+name: Shorebird Release KITARA Android
+
+on:
+  push:
+    branches:
+      - kitara/combined-updates
+    paths:
+      - .github/workflows/shorebird-release.yml
+      - pubspec.yaml
+      - pubspec.lock
+      - assets/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: false
+
+      - name: Set up Flutter for Android project generation
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+
+      - name: Verify required secrets
+        env:
+          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
+          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
+          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
+        run: |
+          set -e
+          test -n "$SHOREBIRD_TOKEN" || { echo "SHOREBIRD_TOKEN is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_BASE64" || { echo "KITARA_KEYSTORE_BASE64 is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_PASSWORD" || { echo "KITARA_KEYSTORE_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_PASSWORD" || { echo "KITARA_KEY_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_ALIAS" || { echo "KITARA_KEY_ALIAS is missing"; exit 1; }
+
+      - name: Generate Android project
+        run: flutter create . --platforms=android
+
+      - name: Configure Android app and compile SDK
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if not manifest.exists():
+              raise SystemExit("AndroidManifest.xml was not generated")
+          s = manifest.read_text(encoding="utf-8")
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if marker not in s:
+              raise SystemExit("Unexpected Android manifest format")
+          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if permission not in s:
+              s = s.replace(marker, marker + "\n    " + permission, 1)
+          s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
+          manifest.write_text(s, encoding="utf-8")
+
+          candidates = [Path("android/app/build.gradle.kts"), Path("android/app/build.gradle")]
+          gradle = next((p for p in candidates if p.exists()), None)
+          if gradle is None:
+              raise SystemExit("No Android app Gradle file was generated")
+          g = gradle.read_text(encoding="utf-8")
+          patterns = [
+              (r'(?m)^(\s*compileSdk\s*=\s*).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdkVersion\s+).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdk\s+).*$', r'\g<1>36'),
+          ]
+          count = 0
+          for pattern, replacement in patterns:
+              g, count = re.subn(pattern, replacement, g, count=1)
+              if count:
+                  break
+          if not count:
+              print(g)
+              raise SystemExit("Could not locate compileSdk declaration in " + str(gradle))
+          gradle.write_text(g, encoding="utf-8")
+          print(f"Configured {gradle} with compile SDK 36")
+          PY
+
+      - name: Show generated Android config
+        run: |
+          grep -nE "applicationId|namespace|compileSdk|minSdk|targetSdk" android/app/build.gradle.kts || true
+          grep -n "uses-permission\|android:label" android/app/src/main/AndroidManifest.xml || true
+
+      - name: Download Amiri fonts
+        run: |
+          set -e
+          mkdir -p assets/fonts
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf \
+            || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf \
+            || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
+
+      - name: Install dependencies and generate icon
+        run: |
+          flutter pub get
+          dart run flutter_launcher_icons
+
+      - name: Force Android plugin modules to compile with API 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          if not cache.exists():
+              raise SystemExit(f"Pub cache not found: {cache}")
+
+          gradle_files = list(cache.glob("*/android/build.gradle")) + list(cache.glob("*/android/build.gradle.kts"))
+          patched = []
+          pattern = re.compile(r"(?m)^(\s*)(compileSdkVersion|compileSdk)\s*(?:=\s*)?.*$")
+
+          for path in gradle_files:
+              source = path.read_text(encoding="utf-8")
+              is_kts = path.name.endswith(".kts")
+              replacement = lambda m: m.group(1) + ("compileSdk = 36" if is_kts else "compileSdkVersion 36")
+              updated, count = pattern.subn(replacement, source)
+              if count:
+                  path.write_text(updated, encoding="utf-8")
+                  patched.append(str(path))
+
+          syncfusion = [p for p in patched if p.split("/")[-3].startswith("syncfusion_flutter_pdfviewer-")]
+          if not syncfusion:
+              candidates = list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle*"))
+              raise SystemExit(
+                  "Syncfusion PDF Viewer Android Gradle file was not patched. "
+                  f"Found candidates: {[str(p) for p in candidates]}"
+              )
+
+          print(f"Patched {len(patched)} Android plugin Gradle files to compileSdk 36")
+          for path in syncfusion:
+              print(f"Verified Syncfusion API 36: {path}")
+          PY
+
+      - name: Verify Android API 36 configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          checks = [
+              Path("android/app/build.gradle.kts"),
+              Path("android/app/build.gradle"),
+          ]
+          app = next((p for p in checks if p.exists()), None)
+          if app is None:
+              raise SystemExit("Android app Gradle file is missing")
+
+          def has_api_36(path):
+              text = path.read_text(encoding="utf-8")
+              return re.search(r"(?m)^\s*compileSdk(?:Version)?\s*(?:=\s*)?36\b", text) is not None
+
+          if not has_api_36(app):
+              raise SystemExit(f"App compile SDK is not 36 in {app}")
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          plugins = list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle")) + list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle.kts"))
+          if not plugins:
+              raise SystemExit("Syncfusion PDF Viewer Gradle file was not found")
+
+          for plugin in plugins:
+              text = plugin.read_text(encoding="utf-8")
+              matches = [line.strip() for line in text.splitlines() if "compileSdk" in line]
+              print(f"{plugin}: {matches}")
+              if not has_api_36(plugin):
+                  raise SystemExit(f"Syncfusion compile SDK is not explicitly 36 in {plugin}")
+
+          print("Verified Android app and Syncfusion compile SDK 36")
+          PY
+
+      - name: Analyze Dart
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
+
+      - name: Create Shorebird Android release APK
+        run: |
+          shorebird release android --artifact apk --target-platform android-arm64 --flutter-version=3.47.9
+
+      - name: Enforce APK size below 30 MB\n        run: |\n          APK="build/app/outputs/flutter-apk/app-release.apk"\n          test -s "$APK"\n          SIZE=$(stat -c%s "$APK")\n          echo "APK size: $SIZE bytes"\n          if [ "$SIZE" -ge 30000000 ]; then echo "APK exceeds the 30 MB target"; exit 1; fi\n\n      - name: Sign APK with KITARA signing key
+        env:
+          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
+          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
+          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/kitara-signing"
+          echo "$KITARA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kitara-signing/kitara.jks"
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/kitara-signing/kitara.jks" --ks-key-alias "$KITARA_KEY_ALIAS" --ks-pass "pass:$KITARA_KEYSTORE_PASSWORD" --key-pass "pass:$KITARA_KEY_PASSWORD" "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          rm -f "$RUNNER_TEMP/kitara-signing/kitara.jks"
+
+      - name: Upload Shorebird APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitara-shorebird-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish Shorebird APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cp build/app/outputs/flutter-apk/app-release.apk kitara-shorebird.apk
+          TAG="shorebird-v${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" kitara-shorebird.apk --title "كِتارا Shorebird $TAG" --generate-notes
