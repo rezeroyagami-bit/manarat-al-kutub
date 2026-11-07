@@ -141,7 +141,7 @@ jobs:
 
           gradle_files = list(cache.glob("*/android/build.gradle")) + list(cache.glob("*/android/build.gradle.kts"))
           patched = []
-          pattern = re.compile(r"(?m)^(\s*)(compileSdkVersion|compileSdk)\s*(?:=\s*)?.*$)
+          pattern = re.compile(r"(?m)^(\s*)(compileSdkVersion|compileSdk)\s*(?:=\s*)?.*$")
 
           for path in gradle_files:
               source = path.read_text(encoding="utf-8")
