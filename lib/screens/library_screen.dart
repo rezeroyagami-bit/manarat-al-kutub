@@ -390,8 +390,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           )
                         : Icon(Icons.menu_book_rounded, size: 40, color: accent),
                   ),
-),
-                    ),
                 ],
               ),
             ),
