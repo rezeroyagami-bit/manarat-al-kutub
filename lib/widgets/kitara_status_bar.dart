@@ -169,29 +169,6 @@ class _KitaraStatusBarState extends State<KitaraStatusBar> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: widget.exclusiveUnlocked ? null : _activate,
-            child: Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 11),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: accent.withValues(alpha: 0.48)),
-              ),
-              child: Text(
-                widget.exclusiveUnlocked ? 'النسخة الذهبية مفعّلة' : 'تفعيل النسخة الذهبية',
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
