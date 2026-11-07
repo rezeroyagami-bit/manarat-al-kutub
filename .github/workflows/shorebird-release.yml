@@ -30,23 +30,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
       - name: Set up Shorebird
         uses: shorebirdtech/setup-shorebird@v1
         with:
           cache: false
-
-      - name: Verify signing secrets
-        env:
-          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
-          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
-          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
-          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
-        run: |
-          test -n "$SHOREBIRD_TOKEN" || { echo "SHOREBIRD_TOKEN is missing"; exit 1; }
-          test -n "$KITARA_KEYSTORE_BASE64" || { echo "KITARA_KEYSTORE_BASE64 is missing"; exit 1; }
-          test -n "$KITARA_KEYSTORE_PASSWORD" || { echo "KITARA_KEYSTORE_PASSWORD is missing"; exit 1; }
-          test -n "$KITARA_KEY_PASSWORD" || { echo "KITARA_KEY_PASSWORD is missing"; exit 1; }
-          test -n "$KITARA_KEY_ALIAS" || { echo "KITARA_KEY_ALIAS is missing"; exit 1; }
 
       - name: Set up Flutter for Android project generation
         uses: subosito/flutter-action@v2
@@ -54,54 +47,65 @@ jobs:
           flutter-version: '3.47.9'
           channel: stable
 
+      - name: Verify required secrets
+        env:
+          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
+          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
+          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
+          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
+        run: |
+          set -e
+          test -n "$SHOREBIRD_TOKEN" || { echo "SHOREBIRD_TOKEN is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_BASE64" || { echo "KITARA_KEYSTORE_BASE64 is missing"; exit 1; }
+          test -n "$KITARA_KEYSTORE_PASSWORD" || { echo "KITARA_KEYSTORE_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_PASSWORD" || { echo "KITARA_KEY_PASSWORD is missing"; exit 1; }
+          test -n "$KITARA_KEY_ALIAS" || { echo "KITARA_KEY_ALIAS is missing"; exit 1; }
+
       - name: Generate Android project
         run: flutter create . --platforms=android
 
-      - name: Configure Android app
+      - name: Configure Android app and compile SDK
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text(encoding="utf-8")
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if not manifest.exists():
+              raise SystemExit("AndroidManifest.xml was not generated")
+          s = manifest.read_text(encoding="utf-8")
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if marker not in s:
+              raise SystemExit("Unexpected Android manifest format")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
-          install_permission = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>'
-          manifest_open = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
           if permission not in s:
-              s = s.replace(manifest_open, manifest_open + '\n    ' + permission)
-          if install_permission not in s:
-              s = s.replace(permission, permission + '\n    ' + install_permission)
+              s = s.replace(marker, marker + '\\n    ' + permission, 1)
           s = re.sub(r'android:label="[^"]*"', 'android:label="KITARA — كِتارا"', s, count=1)
-          p.write_text(s, encoding="utf-8")
+          manifest.write_text(s, encoding="utf-8")
 
-          gradle_files = [Path("android/app/build.gradle"), Path("android/app/build.gradle.kts")]
-          gradle_file = next((f for f in gradle_files if f.exists()), None)
-          if gradle_file is None:
-              raise SystemExit("Android app Gradle file was not generated")
-          g = gradle_file.read_text(encoding="utf-8")
-          g, count = re.subn(r'^\s*compileSdk\s*=.*$', '    compileSdk = 36', g, count=1, flags=re.MULTILINE)
-          if count != 1:
-              raise SystemExit("Could not safely set Kotlin DSL compileSdk to 36")
-          gradle_file.write_text(g, encoding="utf-8")
-          print(f"Configured {gradle_file} to compileSdk 36")
+          candidates = [Path("android/app/build.gradle.kts"), Path("android/app/build.gradle")]
+          gradle = next((p for p in candidates if p.exists()), None)
+          if gradle is None:
+              raise SystemExit("No Android app Gradle file was generated")
+          g = gradle.read_text(encoding="utf-8")
+          patterns = [
+              (r'(?m)^(\\s*compileSdk\\s*=\\s*).*$', r'\\g<1>36'),
+              (r'(?m)^(\\s*compileSdkVersion\\s+).*$', r'\\g<1>36'),
+              (r'(?m)^(\\s*compileSdk\\s+).*$', r'\\g<1>36'),
+          ]
+          for pattern, replacement in patterns:
+              g, count = re.subn(pattern, replacement, g, count=1)
+              if count:
+                  break
+          if not count:
+              raise SystemExit("Could not locate compileSdk declaration in " + str(gradle))
+          gradle.write_text(g, encoding="utf-8")
+          print(f"Configured {gradle} with compile SDK 36")
           PY
-
-      - name: Install Android SDK platform
-        run: |
-          set -e
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager was not found under Android SDK root: $SDK_ROOT"
-            find /usr/local/lib/android /opt -type f -name sdkmanager -print 2>/dev/null | head -20 || true
-            exit 1
-          fi
-          echo "Using sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Download Amiri fonts
         run: |
+          set -e
           mkdir -p assets/fonts
           curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
           curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
@@ -118,7 +122,7 @@ jobs:
         run: |
           shorebird release android --artifact apk --flutter-version=3.47.9 --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
 
-      - name: Sign APK with KITARA's existing signing key
+      - name: Sign APK with KITARA signing key
         env:
           KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
           KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
@@ -131,6 +135,7 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-release.apk"
           test -s "$APK"
           APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          test -n "$APKSIGNER"
           "$APKSIGNER" sign --ks "$RUNNER_TEMP/kitara-signing/kitara.jks" --ks-key-alias "$KITARA_KEY_ALIAS" --ks-pass "pass:$KITARA_KEYSTORE_PASSWORD" --key-pass "pass:$KITARA_KEY_PASSWORD" "$APK"
           "$APKSIGNER" verify --verbose "$APK"
 
@@ -139,81 +144,14 @@ jobs:
         with:
           name: kitara-shorebird-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
           retention-days: 90
 
       - name: Publish Shorebird APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk kitara-shorebird.apk
-          TAG="shorebird-v${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" kitara-shorebird.apk --title "كِتارا Shorebird $TAG" --generate-notes
-, '    compileSdk = 36', g, count=1, flags=re.MULTILINE)
-          if count != 1:
-              raise SystemExit("Could not safely set Kotlin DSL compileSdk to 36")
-          gradle_file.write_text(g, encoding="utf-8")
-          print(f"Configured {gradle_file} to compileSdk 36")
-          PY
-
-      - name: Install Android SDK platform
-        run: |
           set -e
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager was not found under Android SDK root: $SDK_ROOT"
-            find /usr/local/lib/android /opt -type f -name sdkmanager -print 2>/dev/null | head -20 || true
-            exit 1
-          fi
-          echo "Using sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Download Amiri fonts
-        run: |
-          mkdir -p assets/fonts
-          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
-          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
-
-      - name: Install dependencies and generate icon
-        run: |
-          flutter pub get
-          dart run flutter_launcher_icons
-
-      - name: Analyze Dart
-        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
-
-      - name: Create Shorebird Android release APK
-        run: |
-          shorebird release android --artifact apk --flutter-version=3.47.9 --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "${GITHUB_RUN_NUMBER}"
-
-      - name: Sign APK with KITARA's existing signing key
-        env:
-          KITARA_KEYSTORE_BASE64: ${{ secrets.KITARA_KEYSTORE_BASE64 }}
-          KITARA_KEYSTORE_PASSWORD: ${{ secrets.KITARA_KEYSTORE_PASSWORD }}
-          KITARA_KEY_ALIAS: ${{ secrets.KITARA_KEY_ALIAS }}
-          KITARA_KEY_PASSWORD: ${{ secrets.KITARA_KEY_PASSWORD }}
-        run: |
-          set -e
-          mkdir -p "$RUNNER_TEMP/kitara-signing"
-          echo "$KITARA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kitara-signing/kitara.jks"
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          test -s "$APK"
-          APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$APKSIGNER" sign --ks "$RUNNER_TEMP/kitara-signing/kitara.jks" --ks-key-alias "$KITARA_KEY_ALIAS" --ks-pass "pass:$KITARA_KEYSTORE_PASSWORD" --key-pass "pass:$KITARA_KEY_PASSWORD" "$APK"
-          "$APKSIGNER" verify --verbose "$APK"
-
-      - name: Upload Shorebird APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kitara-shorebird-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 90
-
-      - name: Publish Shorebird APK release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
           cp build/app/outputs/flutter-apk/app-release.apk kitara-shorebird.apk
           TAG="shorebird-v${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" kitara-shorebird.apk --title "كِتارا Shorebird $TAG" --generate-notes
