@@ -111,12 +111,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       child: Icon(Icons.menu_book_rounded, size: 90, color: accent),
                     ),
                   ),
-                if (widget.book.isExclusive)
-                  Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(Icons.workspace_premium_rounded, color: accent, size: 34),
-                  ),
-              ],
+],
             ),
             const SizedBox(height: 24),
             Text(widget.book.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold, height: 1.4)),
@@ -130,11 +125,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 child: Text(widget.book.category, style: TextStyle(color: accent, fontWeight: FontWeight.w600)),
               ),
             ),
-            if (widget.book.isExclusive) ...[
-              const SizedBox(height: 14),
-              Text('محتوى النسخة الذهبية', textAlign: TextAlign.center, style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-            const SizedBox(height: 24),
+const SizedBox(height: 24),
             const Text('عن المحتوى', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Text(widget.book.description ?? 'لا يوجد وصف لهذا الكتاب.', style: const TextStyle(fontSize: 16, height: 1.8)),
