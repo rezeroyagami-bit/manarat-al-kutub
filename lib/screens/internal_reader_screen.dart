@@ -214,17 +214,69 @@ class _CbrPage extends StatefulWidget {
   State<_CbrPage> createState() => _CbrPageState();
 }
 
-class _CbrPageState extends State<_CbrPage> {
-  final TransformationController _transformController = TransformationController();
+class _CbrPageState extends State<_CbrPage>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformController =
+      TransformationController();
+  late final AnimationController _zoomAnimationController;
+  Animation<Matrix4>? _zoomAnimation;
+  Offset _doubleTapPosition = Offset.zero;
   bool _zoomed = false;
 
-  void _resetZoom() {
-    _transformController.value = Matrix4.identity();
-    setState(() => _zoomed = false);
+  @override
+  void initState() {
+    super.initState();
+    _zoomAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..addListener(_applyZoomAnimation);
+  }
+
+  void _applyZoomAnimation() {
+    final animation = _zoomAnimation;
+    if (animation != null) {
+      _transformController.value = animation.value;
+    }
+  }
+
+  void _animateTo(Matrix4 target) {
+    _zoomAnimationController.stop();
+    _zoomAnimation = Matrix4Tween(
+      begin: _transformController.value,
+      end: target,
+    ).animate(CurvedAnimation(
+      parent: _zoomAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _zoomAnimationController.forward(from: 0);
+    final zoomed = target.getMaxScaleOnAxis() > 1.01;
+    if (_zoomed != zoomed && mounted) {
+      setState(() => _zoomed = zoomed);
+    }
+  }
+
+  void _resetZoom() => _animateTo(Matrix4.identity());
+
+  void _toggleDoubleTapZoom() {
+    if (_transformController.value.getMaxScaleOnAxis() > 1.01) {
+      _resetZoom();
+      return;
+    }
+
+    const scale = 2.5;
+    final focal = _doubleTapPosition;
+    final target = Matrix4.identity()
+      ..translate(focal.dx * (1 - scale), focal.dy * (1 - scale))
+      ..scale(scale);
+    _animateTo(target);
   }
 
   @override
-  void dispose() { _transformController.dispose(); super.dispose(); }
+  void dispose() {
+    _zoomAnimationController.dispose();
+    _transformController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -232,30 +284,49 @@ class _CbrPageState extends State<_CbrPage> {
       builder: (context, constraints) => Stack(
         fit: StackFit.expand,
         children: [
-          InteractiveViewer(
-          transformationController: _transformController,
-          minScale: 1.0,
-          maxScale: 8.0,
-          panEnabled: true,
-          scaleEnabled: true,
-          boundaryMargin: const EdgeInsets.all(160),
-          clipBehavior: Clip.hardEdge,
-          constrained: true,
-          onInteractionUpdate: (_) {
-            // Track the scale locally while fingers are moving. Do not rebuild the
-            // parent PageView during an active pinch gesture: changing its physics
-            // mid-gesture can leave the reader stuck after zooming back out.
-            _zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
-          },
-          onInteractionEnd: (_) {
-            final zoomed = _transformController.value.getMaxScaleOnAxis() > 1.01;
-            if (_zoomed != zoomed && mounted) setState(() => _zoomed = zoomed);
-          },
-          child: SizedBox(
-            width: constraints.maxWidth,
-            height: constraints.maxHeight,
-            child: Image.memory(widget.bytes, fit: BoxFit.contain, filterQuality: FilterQuality.low),
-          ),
+          RepaintBoundary(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTapDown: (details) {
+                _doubleTapPosition = details.localPosition;
+              },
+              onDoubleTap: _toggleDoubleTapZoom,
+              child: InteractiveViewer(
+                transformationController: _transformController,
+                minScale: 1,
+                maxScale: 6,
+                panEnabled: true,
+                scaleEnabled: true,
+                boundaryMargin: const EdgeInsets.all(48),
+                alignment: Alignment.center,
+                constrained: true,
+                clipBehavior: Clip.hardEdge,
+                onInteractionStart: (_) {
+                  _zoomAnimationController.stop();
+                },
+                onInteractionUpdate: (_) {
+                  _zoomed =
+                      _transformController.value.getMaxScaleOnAxis() > 1.01;
+                },
+                onInteractionEnd: (_) {
+                  final zoomed =
+                      _transformController.value.getMaxScaleOnAxis() > 1.01;
+                  if (_zoomed != zoomed && mounted) {
+                    setState(() => _zoomed = zoomed);
+                  }
+                },
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Image.memory(
+                    widget.bytes,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                  ),
+                ),
+              ),
+            ),
           ),
           if (_zoomed)
             Positioned(
@@ -267,7 +338,10 @@ class _CbrPageState extends State<_CbrPage> {
                 child: IconButton(
                   tooltip: 'إعادة الصفحة إلى الحجم الطبيعي',
                   onPressed: _resetZoom,
-                  icon: const Icon(Icons.zoom_out_map_rounded, color: Colors.white),
+                  icon: const Icon(
+                    Icons.zoom_out_map_rounded,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
