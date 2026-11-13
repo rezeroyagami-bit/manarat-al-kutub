@@ -120,8 +120,15 @@ jobs:
           curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf \
             || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
 
-      - name: Install dependencies and generate icon
+      - name: Optimize launcher icon and generate Android icon
         run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y pngquant
+          pngquant --quality=65-85 --speed 1 --force --output /tmp/kitara_icon.png assets/kitara_icon.png
+          test -s /tmp/kitara_icon.png
+          cp /tmp/kitara_icon.png assets/kitara_icon.png
+          echo "Optimized launcher icon: $(stat -c%s assets/kitara_icon.png) bytes"
           flutter pub get
           dart run flutter_launcher_icons
 
