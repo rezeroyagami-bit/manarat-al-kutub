@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:koni_archive/io.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../services/cbr_to_pdf_service.dart';
+
 class InternalReaderScreen extends StatelessWidget {
   final String filePath;
   final String title;
-
   const InternalReaderScreen({super.key, required this.filePath, required this.title});
 
   String get _extension {
@@ -22,12 +23,12 @@ class InternalReaderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (_extension) {
       case 'pdf':
-        return _ReaderScaffold(title: title, child: SfPdfViewer.file(File(filePath)));
+        return _PdfReader(filePath: filePath, title: title);
       case 'doc':
       case 'docx':
         return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error')));
       case 'cbr':
-        return _CbrReader(filePath: filePath, title: title);
+        return _CbrConversionGate(filePath: filePath, title: title);
       default:
         return _ReaderScaffold(title: title, child: const _ReaderError(message: 'هذه الصيغة غير مدعومة حاليًا داخل قارئ KITARA.'));
     }
@@ -49,6 +50,156 @@ class _ReaderError extends StatelessWidget {
   Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(28), child: Text(message, textAlign: TextAlign.center, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 17, height: 1.7))));
 }
 
+class _PdfReader extends StatefulWidget {
+  final String filePath;
+  final String title;
+  const _PdfReader({required this.filePath, required this.title});
+  @override
+  State<_PdfReader> createState() => _PdfReaderState();
+}
+
+class _PdfReaderState extends State<_PdfReader> {
+  static const double _minZoom = 1.0;
+  static const double _maxZoom = 8.0;
+  final PdfViewerController _controller = PdfViewerController();
+  double _zoom = 1.0;
+
+  void _changeZoom(double delta) {
+    final next = (_controller.zoomLevel + delta).clamp(_minZoom, _maxZoom).toDouble();
+    _controller.zoomLevel = next;
+    setState(() => _zoom = next);
+  }
+
+  void _resetZoom() {
+    _controller.zoomLevel = _minZoom;
+    setState(() => _zoom = _minZoom);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(tooltip: 'تصغير', onPressed: _zoom > _minZoom ? () => _changeZoom(-0.5) : null, icon: const Icon(Icons.zoom_out_rounded)),
+          Center(child: Text((_zoom * 100).round().toString() + '%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+          IconButton(tooltip: 'تكبير', onPressed: _zoom < _maxZoom ? () => _changeZoom(0.5) : null, icon: const Icon(Icons.zoom_in_rounded)),
+          IconButton(tooltip: 'ملاءمة الصفحة', onPressed: _resetZoom, icon: const Icon(Icons.fit_screen_rounded)),
+        ],
+      ),
+      body: SfPdfViewer.file(
+        File(widget.filePath),
+        controller: _controller,
+        maxZoomLevel: _maxZoom,
+        enableDoubleTapZooming: true,
+        onZoomLevelChanged: (details) {
+          if (!mounted) return;
+          setState(() => _zoom = details.newZoomLevel.clamp(_minZoom, _maxZoom).toDouble());
+        },
+      ),
+    );
+  }
+}
+
+class _CbrConversionGate extends StatefulWidget {
+  final String filePath;
+  final String title;
+  const _CbrConversionGate({required this.filePath, required this.title});
+
+  @override
+  State<_CbrConversionGate> createState() => _CbrConversionGateState();
+}
+
+class _CbrConversionGateState extends State<_CbrConversionGate> {
+  File? _pdfFile;
+  String? _error;
+  bool _converting = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _convert();
+  }
+
+  Future<void> _convert() async {
+    if (mounted) setState(() { _converting = true; _error = null; });
+    try {
+      final file = await CbrToPdfService.convertOrGetCached(widget.filePath);
+      if (!mounted) return;
+      setState(() { _pdfFile = file; _converting = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+        _converting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_pdfFile != null) {
+      return _PdfReader(filePath: _pdfFile!.path, title: widget.title);
+    }
+    if (_converting) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 22),
+                Text('جاري تحويل المجلة إلى PDF لأول مرة...', textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                SizedBox(height: 10),
+                Text('قد تستغرق العملية بعض الوقت حسب عدد الصفحات وحجم الصور. لا تغلق التطبيق.',
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.picture_as_pdf_outlined, size: 58),
+              const SizedBox(height: 16),
+              const Text('تعذر تحويل المجلة إلى PDF', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(_error ?? 'حدث خطأ غير متوقع.', textAlign: TextAlign.center),
+              const SizedBox(height: 22),
+              FilledButton.icon(onPressed: _convert, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة')),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => _CbrReader(filePath: widget.filePath, title: widget.title)),
+                ),
+                icon: const Icon(Icons.menu_book_outlined),
+                label: const Text('فتح بالقارئ القديم'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CbrReader extends StatefulWidget {
   final String filePath;
   final String title;
@@ -59,11 +210,18 @@ class _CbrReader extends StatefulWidget {
 
 class _CbrReaderState extends State<_CbrReader> {
   final PageController _pageController = PageController();
+  final Map<String, Future<Uint8List>> _pageFutures = {};
   List<String> _pages = [];
   Archive? _archive;
   bool _loading = true;
   String? _error;
   int _currentPage = 0;
+  bool _currentPageZoomed = false;
+
+  void _onPageZoomChanged(bool zoomed) {
+    if (!mounted || _currentPageZoomed == zoomed) return;
+    setState(() => _currentPageZoomed = zoomed);
+  }
 
   @override
   void initState() { super.initState(); _loadPages(); }
@@ -113,36 +271,202 @@ class _CbrReaderState extends State<_CbrReader> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: const Center(child: CircularProgressIndicator()));
-    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\n$_error'));
+    if (_error != null) return Scaffold(appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)), body: _ReaderError(message: 'تعذر فتح المجلة.\\n$_error'));
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [Center(child: Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: Text('${_currentPage + 1}/${_pages.length}')))]),
+      appBar: AppBar(
+        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          Center(child: Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: Text((_currentPage + 1).toString() + '/' + _pages.length.toString()))),
+          IconButton(
+            tooltip: 'طريقة التكبير',
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كبّر الصفحة بإصبعين، ثم اسحبها للتحرك. انقر مرتين للعودة للحجم الطبيعي.'))),
+            icon: const Icon(Icons.pinch_rounded),
+          ),
+        ],
+      ),
       body: PageView.builder(
         controller: _pageController,
         itemCount: _pages.length,
-        onPageChanged: (index) => setState(() => _currentPage = index),
-        itemBuilder: (context, index) => FutureBuilder<Uint8List>(
-          future: _readPage(_pages[index]),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-            if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
-            return LayoutBuilder(
-              builder: (context, constraints) => InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 6.0,
+        // Horizontal drags control the image while zoomed, and page changes otherwise.
+        physics: _currentPageZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        onPageChanged: (index) => setState(() {
+          _currentPage = index;
+          _currentPageZoomed = false;
+        }),
+        itemBuilder: (context, index) {
+          final path = _pages[index];
+          // Keep each page's decoding future stable across parent rebuilds.
+          // Recreating it here used to reload the image and dispose the zoom
+          // controller whenever the PageView physics changed after a pinch.
+          final pageFuture = _pageFutures.putIfAbsent(path, () => _readPage(path));
+          return FutureBuilder<Uint8List>(
+            future: pageFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+              if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
+              return _CbrPage(
+                key: ValueKey(path),
+                bytes: snapshot.data!,
+                onZoomChanged: _onPageZoomChanged,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CbrPage extends StatefulWidget {
+  final Uint8List bytes;
+  final ValueChanged<bool> onZoomChanged;
+  const _CbrPage({super.key, required this.bytes, required this.onZoomChanged});
+  @override
+  State<_CbrPage> createState() => _CbrPageState();
+}
+
+class _CbrPageState extends State<_CbrPage>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformController =
+      TransformationController();
+  late final AnimationController _zoomAnimationController;
+  Animation<Matrix4>? _zoomAnimation;
+  Offset _doubleTapPosition = Offset.zero;
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _zoomAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..addListener(_applyZoomAnimation);
+  }
+
+  void _applyZoomAnimation() {
+    final animation = _zoomAnimation;
+    if (animation != null) {
+      _transformController.value = animation.value;
+    }
+  }
+
+  void _animateTo(Matrix4 target) {
+    _zoomAnimationController.stop();
+    _zoomAnimation = Matrix4Tween(
+      begin: _transformController.value,
+      end: target,
+    ).animate(CurvedAnimation(
+      parent: _zoomAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _zoomAnimationController.forward(from: 0);
+    final zoomed = target.getMaxScaleOnAxis() > 1.01;
+    if (_zoomed != zoomed && mounted) {
+      setState(() => _zoomed = zoomed);
+    }
+  }
+
+  void _resetZoom() {
+    _animateTo(Matrix4.identity());
+    widget.onZoomChanged(false);
+  }
+
+  void _toggleDoubleTapZoom() {
+    if (_transformController.value.getMaxScaleOnAxis() > 1.01) {
+      _resetZoom();
+      return;
+    }
+
+    const scale = 2.5;
+    final focal = _doubleTapPosition;
+    final target = Matrix4.identity()
+      ..translate(focal.dx * (1 - scale), focal.dy * (1 - scale))
+      ..scale(scale);
+    _animateTo(target);
+  }
+
+  @override
+  void dispose() {
+    _zoomAnimationController.dispose();
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        fit: StackFit.expand,
+        children: [
+          RepaintBoundary(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTapDown: (details) {
+                _doubleTapPosition = details.localPosition;
+              },
+              onDoubleTap: _toggleDoubleTapZoom,
+              child: InteractiveViewer(
+                transformationController: _transformController,
+                minScale: 1,
+                maxScale: 6,
                 panEnabled: true,
                 scaleEnabled: true,
-                boundaryMargin: const EdgeInsets.all(160),
-                clipBehavior: Clip.none,
+                boundaryMargin: const EdgeInsets.all(1000),
+                alignment: Alignment.center,
                 constrained: true,
+                clipBehavior: Clip.hardEdge,
+                onInteractionStart: (_) {
+                  _zoomAnimationController.stop();
+                },
+                onInteractionUpdate: (_) {
+                  final zoomed =
+                      _transformController.value.getMaxScaleOnAxis() > 1.01;
+                  if (_zoomed != zoomed) {
+                    _zoomed = zoomed;
+                    widget.onZoomChanged(zoomed);
+                  }
+                },
+                onInteractionEnd: (_) {
+                  final zoomed =
+                      _transformController.value.getMaxScaleOnAxis() > 1.01;
+                  if (_zoomed != zoomed && mounted) {
+                    setState(() => _zoomed = zoomed);
+                  }
+                  widget.onZoomChanged(zoomed);
+                },
                 child: SizedBox(
                   width: constraints.maxWidth,
                   height: constraints.maxHeight,
-                  child: Image.memory(snapshot.data!, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+                  child: Image.memory(
+                    widget.bytes,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+          if (_zoomed)
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: Material(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(28),
+                child: IconButton(
+                  tooltip: 'إعادة الصفحة إلى الحجم الطبيعي',
+                  onPressed: _resetZoom,
+                  icon: const Icon(
+                    Icons.zoom_out_map_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

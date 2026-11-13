@@ -1,0 +1,141 @@
+name: Shorebird Patch KITARA Android
+
+on:
+  push:
+    branches:
+      - kitara/combined-updates
+    paths:
+      - lib/**
+      - .github/workflows/shorebird-patch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+
+      - name: Verify Shorebird token
+        run: test -n "$SHOREBIRD_TOKEN"
+
+      - name: Generate Android project
+        run: flutter create . --platforms=android
+
+      - name: Ensure Android internet permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          if not manifest.exists():
+              raise SystemExit("AndroidManifest.xml was not generated")
+          source = manifest.read_text(encoding="utf-8")
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if permission not in source:
+              if marker not in source:
+                  raise SystemExit("Unexpected Android manifest format")
+              source = source.replace(marker, marker + "\n    " + permission, 1)
+              manifest.write_text(source, encoding="utf-8")
+          print("Verified Android INTERNET permission")
+          PY
+
+      - name: Configure Android compile SDK 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          gradle = Path("android/app/build.gradle.kts")
+          if not gradle.exists():
+              gradle = Path("android/app/build.gradle")
+          if not gradle.exists():
+              raise SystemExit("Android app Gradle file missing")
+          source = gradle.read_text(encoding="utf-8")
+          patterns = [
+              (r'(?m)^(\s*compileSdk\s*=\s*).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdkVersion\s+).*$', r'\g<1>36'),
+              (r'(?m)^(\s*compileSdk\s+).*$', r'\g<1>36'),
+          ]
+          for pattern, replacement in patterns:
+              source, count = re.subn(pattern, replacement, source, count=1)
+              if count:
+                  break
+          else:
+              raise SystemExit("Could not set app compileSdk to 36")
+          gradle.write_text(source, encoding="utf-8")
+          PY
+
+      - name: Download Amiri fonts
+        run: |
+          set -e
+          mkdir -p assets/fonts
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf \
+            || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf" -o assets/fonts/amiri-regular.ttf
+          curl -fL "https://raw.githubusercontent.com/aliftype/amiri/1.003/fonts/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf \
+            || curl -fL "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Bold.ttf" -o assets/fonts/amiri-bold.ttf
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Force Android plugins to compile with API 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          files = list(cache.glob("*/android/build.gradle")) + list(cache.glob("*/android/build.gradle.kts"))
+          changed = 0
+          pattern = re.compile(r"(?m)^(\s*)(compileSdkVersion|compileSdk)\s*(?:=\s*)?.*$")
+          for path in files:
+              source = path.read_text(encoding="utf-8")
+              kts = path.name.endswith(".kts")
+              replacement = lambda m: m.group(1) + ("compileSdk = 36" if kts else "compileSdkVersion 36")
+              result, count = pattern.subn(replacement, source)
+              if count:
+                  path.write_text(result, encoding="utf-8")
+                  changed += 1
+          syncfusion = list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle")) + list(cache.glob("syncfusion_flutter_pdfviewer-*/android/build.gradle.kts"))
+          if not syncfusion:
+              raise SystemExit("Syncfusion PDF Viewer Gradle file not found")
+          for path in syncfusion:
+              source = path.read_text(encoding="utf-8")
+              if not re.search(r"(?m)^\s*compileSdk(?:Version)?\s*(?:=\s*)?36\b", source):
+                  raise SystemExit(f"Syncfusion compileSdk is not 36: {path}")
+          print(f"Patched {changed} Android plugin Gradle files")
+          PY
+
+      - name: Analyze Dart
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
+
+      - name: Publish Shorebird patch to stable
+        run: shorebird patch android --release-version 1.0.28+28 --track stable --allow-asset-diffs --allow-native-diffs

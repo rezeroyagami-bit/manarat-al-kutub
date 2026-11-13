@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/book.dart';
 import '../services/supabase_service.dart';
-import '../services/ad_block_detector.dart';
 import '../services/remote_config.dart';
-import 'ad_block_screen.dart';
 import 'downloads_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'library_screen.dart';
-import '../widgets/kitara_status_bar.dart';
 import 'maintenance_screen.dart';
 
 class AppShell extends StatefulWidget {
@@ -35,9 +31,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final SupabaseService _supabaseService = SupabaseService();
   List<Book> books = [];
   bool loading = true;
-  bool adBlockCheckComplete = false;
-  bool adBlockDetected = false;
-  bool exclusiveUnlocked = false;
+  bool exclusiveUnlocked = true;
   bool maintenanceMode = false;
   bool maintenanceAllowDownloads = true;
   bool _checkingActivation = false;
@@ -46,14 +40,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   String maintenanceMessage = 'نعمل حاليًا على تحسين كِتارا وتحديث المحتوى. يرجى المحاولة لاحقًا.';
   String? errorMessage;
   int currentIndex = 0;
+  final GlobalKey<DownloadsScreenState> _downloadsKey = GlobalKey<DownloadsScreenState>();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     RemoteConfigStore.instance.addListener(_onRemoteConfigChanged);
-    _loadExclusiveState();
-    _loadBooksThenCheckAdBlocker();
+    _loadBooks();
   }
 
   @override
@@ -70,83 +64,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _revalidateActivation();
       _checkMaintenance();
       RemoteConfigStore.instance.load();
     }
-  }
-
-  Future<void> _loadExclusiveState() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
-        if (!mounted) return;
-        setState(() => exclusiveUnlocked = false);
-        return;
-      }
-
-      try {
-        final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
-        if (!valid) {
-          await _clearExclusiveState();
-          return;
-        }
-      } catch (_) {}
-
-      if (!mounted) return;
-      setState(() => exclusiveUnlocked = true);
-    } catch (_) {}
-  }
-
-  Future<void> _revalidateActivation() async {
-    if (_checkingActivation) return;
-    _checkingActivation = true;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final unlocked = prefs.getBool('exclusive_content_unlocked') ?? false;
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (!unlocked || savedCode == null || savedCode.trim().isEmpty) {
-        if (mounted && exclusiveUnlocked) {
-          setState(() => exclusiveUnlocked = false);
-          await widget.onExclusiveDeactivated?.call();
-        }
-        return;
-      }
-
-      final valid = await _supabaseService.validateKitaraActivationCode(savedCode);
-      if (!valid) {
-        await _clearExclusiveState();
-      } else if (mounted && !exclusiveUnlocked) {
-        setState(() => exclusiveUnlocked = true);
-        await widget.onExclusiveActivated?.call(savedCode);
-      }
-    } catch (_) {} finally {
-      _checkingActivation = false;
-    }
-  }
-
-  Future<void> _clearExclusiveState() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('exclusive_content_unlocked', false);
-      await prefs.remove('exclusive_activation_code');
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() => exclusiveUnlocked = false);
-    await widget.onExclusiveDeactivated?.call();
-  }
-
-  Future<void> _activateExclusiveTheme(String code) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('exclusive_content_unlocked', true);
-      await prefs.setString('exclusive_activation_code', code.trim());
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() => exclusiveUnlocked = true);
-    await widget.onExclusiveActivated?.call(code.trim());
   }
 
   Future<void> _checkMaintenance({bool showLoading = false}) async {
@@ -173,13 +93,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadBooksThenCheckAdBlocker() async {
+  Future<void> _loadBooks() async {
     if (mounted) {
       setState(() {
         loading = true;
         errorMessage = null;
-        adBlockCheckComplete = false;
-        adBlockDetected = false;
       });
     }
 
@@ -189,7 +107,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         if (!mounted) return;
         setState(() {
           loading = false;
-          adBlockCheckComplete = true;
         });
         return;
       }
@@ -201,19 +118,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         loading = true;
       });
 
-      final blocked = await AdBlockDetector.isLikelyBlocked();
       if (!mounted) return;
-      setState(() {
-        adBlockDetected = blocked;
-        adBlockCheckComplete = true;
-        loading = false;
-      });
+      setState(() { loading = false; });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         loading = false;
-        adBlockCheckComplete = true;
-        adBlockDetected = false;
         errorMessage = null;
       });
     }
@@ -248,7 +158,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    if (!adBlockCheckComplete || loading) return const _LoadingScreen();
+    if (loading) return const _LoadingScreen();
 
     if (maintenanceMode) {
       if (maintenanceAllowDownloads) {
@@ -264,42 +174,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       );
     }
 
-    if (adBlockDetected) return AdBlockScreen(onRetry: _loadBooksThenCheckAdBlocker);
-    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooksThenCheckAdBlocker);
+    if (errorMessage != null) return _ErrorScreen(message: errorMessage!, onRetry: _loadBooks);
 
-    final config = RemoteConfigStore.instance.config;
     final screens = <Widget>[
       HomeScreen(books: books, onTheme: widget.onThemeToggle),
       LibraryScreen(books: books),
       FavoritesScreen(books: books, supabaseService: _supabaseService),
-      const DownloadsScreen(),
+      DownloadsScreen(key: _downloadsKey),
     ];
 
     return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 20, 12, 7),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: KitaraStatusBar(
-                exclusiveUnlocked: exclusiveUnlocked,
-                onActivated: _activateExclusiveTheme,
-              ),
-            ),
-          ),
-          Expanded(
-            child: IndexedStack(index: currentIndex, children: screens),
-          ),
-        ],
-      ),
+      body: IndexedStack(index: currentIndex, children: screens),
       bottomNavigationBar: _buildNavigationBar(context),
     );
   }
 
   Widget _buildNavigationBar(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
-    final accent = exclusiveUnlocked ? config.exclusivePrimaryColor : config.freePrimaryColor;
+    const accent = Color(0xFFF28C28);
     return NavigationBar(
       selectedIndex: currentIndex,
       height: 72,
@@ -308,6 +200,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       shadowColor: Colors.black26,
       indicatorColor: Colors.white.withValues(alpha: 0.20),
       onDestinationSelected: (index) {
+        if (index == 3) _downloadsKey.currentState?.refreshDownloads();
         if (currentIndex == index) return;
         setState(() => currentIndex = index);
       },
@@ -326,19 +219,19 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(width: 76, height: 76, decoration: BoxDecoration(color: green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: const Icon(Icons.menu_book_rounded, size: 38, color: green)),
+            Container(width: 76, height: 76, decoration: BoxDecoration(color: green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(24)), child: Icon(Icons.menu_book_rounded, size: 38, color: green)),
             const SizedBox(height: 22),
             const Text('كِتارا', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text('1.0.0', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w400)),
             const SizedBox(height: 14),
-            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
+            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: green)),
             const SizedBox(height: 14),
             Text('جاري تجهيز مكتبتك...', style: TextStyle(fontSize: 15, color: Colors.grey)),
           ],
@@ -355,13 +248,13 @@ class _ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(width: 90, height: 90, decoration: BoxDecoration(color: green.withValues(alpha: 0.10), shape: BoxShape.circle), child: const Icon(Icons.cloud_off_rounded, size: 46, color: green)),
+            Container(width: 90, height: 90, decoration: BoxDecoration(color: green.withValues(alpha: 0.10), shape: BoxShape.circle), child: Icon(Icons.cloud_off_rounded, size: 46, color: green)),
             const SizedBox(height: 24),
             const Text('تعذر تحميل المحتوى', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
@@ -382,7 +275,7 @@ class _MaintenanceLockedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E7D32);
+    final green = Theme.of(context).colorScheme.primary;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -392,7 +285,7 @@ class _MaintenanceLockedScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.build_circle_outlined, size: 70, color: green),
+                Icon(Icons.build_circle_outlined, size: 70, color: green),
                 const SizedBox(height: 22),
                 Text(title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 26, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),

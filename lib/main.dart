@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/supabase_config.dart';
-import 'services/supabase_service.dart';
 import 'services/remote_config.dart';
 import 'screens/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool savedDarkMode = false;
-  bool savedExclusiveTheme = false;
+  bool savedExclusiveTheme = true;
   bool savedWelcomeSeen = false;
   bool supabaseReady = false;
 
@@ -30,27 +28,9 @@ Future<void> main() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     savedDarkMode = prefs.getBool('dark_mode') ?? false;
-    savedExclusiveTheme = prefs.getBool('exclusive_content_unlocked') ?? false;
+    savedExclusiveTheme = true;
     savedWelcomeSeen = prefs.getBool('welcome_seen') ?? false;
 
-    if (savedExclusiveTheme && supabaseReady) {
-      final savedCode = prefs.getString('exclusive_activation_code');
-      if (savedCode == null || savedCode.trim().isEmpty) {
-        savedExclusiveTheme = false;
-        await prefs.setBool('exclusive_content_unlocked', false);
-      } else {
-        try {
-          final valid = await SupabaseService().validateKitaraActivationCode(savedCode);
-          if (!valid) {
-            savedExclusiveTheme = false;
-            await prefs.setBool('exclusive_content_unlocked', false);
-            await prefs.remove('exclusive_activation_code');
-          }
-        } catch (e) {
-          debugPrint('Activation validation on startup failed: $e');
-        }
-      }
-    }
   } catch (e) {
     debugPrint('SharedPreferences error: $e');
   }
@@ -61,15 +41,6 @@ Future<void> main() async {
     initialWelcomeSeen: savedWelcomeSeen,
     supabaseReady: supabaseReady,
   ));
-  _initializeAdsSafely();
-}
-
-Future<void> _initializeAdsSafely() async {
-  try {
-    await MobileAds.instance.initialize();
-  } catch (e) {
-    debugPrint('AdMob initialization error: $e');
-  }
 }
 
 class KitaraApp extends StatefulWidget {
@@ -173,11 +144,9 @@ class _KitaraAppState extends State<KitaraApp> {
   }
 
   ThemeData _theme(Brightness brightness, KitaraRemoteConfig config) {
-    final accent = isExclusiveTheme ? config.exclusivePrimaryColor : config.freePrimaryColor;
+    const accent = Color(0xFFF28C28);
     final dark = brightness == Brightness.dark;
-    final background = isExclusiveTheme
-        ? (dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7))
-        : (dark ? const Color(0xFF101810) : const Color(0xFFF7FBF7));
+    final background = dark ? const Color(0xFF1A1510) : const Color(0xFFFFFBF7);
 
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
@@ -308,7 +277,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final config = RemoteConfigStore.instance.config;
-    final green = config.freePrimaryColor;
+    final green = config.exclusivePrimaryColor;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
