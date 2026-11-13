@@ -23,6 +23,8 @@ dependencies:
   syncfusion_flutter_pdfviewer: 28.1.37
   docx_viewer: ^1.0.1
   koni_archive: ^0.9.0
+  pdf: ^3.13.1
+  image: ^4.7.2
 
 dev_dependencies:
   flutter_test:
