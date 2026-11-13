@@ -121,6 +121,12 @@ class _CbrReaderState extends State<_CbrReader> {
   bool _loading = true;
   String? _error;
   int _currentPage = 0;
+  bool _currentPageZoomed = false;
+
+  void _onPageZoomChanged(bool zoomed) {
+    if (!mounted || _currentPageZoomed == zoomed) return;
+    setState(() => _currentPageZoomed = zoomed);
+  }
 
   @override
   void initState() { super.initState(); _loadPages(); }
@@ -186,7 +192,14 @@ class _CbrReaderState extends State<_CbrReader> {
       body: PageView.builder(
         controller: _pageController,
         itemCount: _pages.length,
-        onPageChanged: (index) => setState(() => _currentPage = index),
+        // Horizontal drags control the image while zoomed, and page changes otherwise.
+        physics: _currentPageZoomed
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        onPageChanged: (index) => setState(() {
+          _currentPage = index;
+          _currentPageZoomed = false;
+        }),
         itemBuilder: (context, index) {
           final path = _pages[index];
           // Keep each page's decoding future stable across parent rebuilds.
@@ -198,7 +211,11 @@ class _CbrReaderState extends State<_CbrReader> {
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
               if (snapshot.hasError || snapshot.data == null) return const _ReaderError(message: 'تعذر عرض هذه الصفحة.');
-              return _CbrPage(key: ValueKey(path), bytes: snapshot.data!);
+              return _CbrPage(
+                key: ValueKey(path),
+                bytes: snapshot.data!,
+                onZoomChanged: _onPageZoomChanged,
+              );
             },
           );
         },
@@ -209,7 +226,8 @@ class _CbrReaderState extends State<_CbrReader> {
 
 class _CbrPage extends StatefulWidget {
   final Uint8List bytes;
-  const _CbrPage({super.key, required this.bytes});
+  final ValueChanged<bool> onZoomChanged;
+  const _CbrPage({super.key, required this.bytes, required this.onZoomChanged});
   @override
   State<_CbrPage> createState() => _CbrPageState();
 }
@@ -255,7 +273,10 @@ class _CbrPageState extends State<_CbrPage>
     }
   }
 
-  void _resetZoom() => _animateTo(Matrix4.identity());
+  void _resetZoom() {
+    _animateTo(Matrix4.identity());
+    widget.onZoomChanged(false);
+  }
 
   void _toggleDoubleTapZoom() {
     if (_transformController.value.getMaxScaleOnAxis() > 1.01) {
@@ -297,7 +318,7 @@ class _CbrPageState extends State<_CbrPage>
                 maxScale: 6,
                 panEnabled: true,
                 scaleEnabled: true,
-                boundaryMargin: const EdgeInsets.all(48),
+                boundaryMargin: const EdgeInsets.all(1000),
                 alignment: Alignment.center,
                 constrained: true,
                 clipBehavior: Clip.hardEdge,
@@ -305,8 +326,12 @@ class _CbrPageState extends State<_CbrPage>
                   _zoomAnimationController.stop();
                 },
                 onInteractionUpdate: (_) {
-                  _zoomed =
+                  final zoomed =
                       _transformController.value.getMaxScaleOnAxis() > 1.01;
+                  if (_zoomed != zoomed) {
+                    _zoomed = zoomed;
+                    widget.onZoomChanged(zoomed);
+                  }
                 },
                 onInteractionEnd: (_) {
                   final zoomed =
@@ -314,6 +339,7 @@ class _CbrPageState extends State<_CbrPage>
                   if (_zoomed != zoomed && mounted) {
                     setState(() => _zoomed = zoomed);
                   }
+                  widget.onZoomChanged(zoomed);
                 },
                 child: SizedBox(
                   width: constraints.maxWidth,
