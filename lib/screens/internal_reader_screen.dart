@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:koni_archive/io.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../services/cbr_to_pdf_service.dart';
+
 class InternalReaderScreen extends StatelessWidget {
   final String filePath;
   final String title;
@@ -26,7 +28,7 @@ class InternalReaderScreen extends StatelessWidget {
       case 'docx':
         return _ReaderScaffold(title: title, child: DocxView(filePath: filePath, fontSize: 18, onError: (error) => _ReaderError(message: 'تعذر عرض ملف Word داخل التطبيق.\n$error')));
       case 'cbr':
-        return _CbrReader(filePath: filePath, title: title);
+        return _CbrConversionGate(filePath: filePath, title: title);
       default:
         return _ReaderScaffold(title: title, child: const _ReaderError(message: 'هذه الصيغة غير مدعومة حاليًا داخل قارئ KITARA.'));
     }
@@ -100,6 +102,99 @@ class _PdfReaderState extends State<_PdfReader> {
           if (!mounted) return;
           setState(() => _zoom = details.newZoomLevel.clamp(_minZoom, _maxZoom).toDouble());
         },
+      ),
+    );
+  }
+}
+
+class _CbrConversionGate extends StatefulWidget {
+  final String filePath;
+  final String title;
+  const _CbrConversionGate({required this.filePath, required this.title});
+
+  @override
+  State<_CbrConversionGate> createState() => _CbrConversionGateState();
+}
+
+class _CbrConversionGateState extends State<_CbrConversionGate> {
+  File? _pdfFile;
+  String? _error;
+  bool _converting = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _convert();
+  }
+
+  Future<void> _convert() async {
+    if (mounted) setState(() { _converting = true; _error = null; });
+    try {
+      final file = await CbrToPdfService.convertOrGetCached(widget.filePath);
+      if (!mounted) return;
+      setState(() { _pdfFile = file; _converting = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+        _converting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_pdfFile != null) {
+      return _PdfReader(filePath: _pdfFile!.path, title: widget.title);
+    }
+    if (_converting) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 22),
+                Text('جاري تحويل المجلة إلى PDF لأول مرة...', textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                SizedBox(height: 10),
+                Text('قد تستغرق العملية بعض الوقت حسب عدد الصفحات وحجم الصور. لا تغلق التطبيق.',
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.picture_as_pdf_outlined, size: 58),
+              const SizedBox(height: 16),
+              const Text('تعذر تحويل المجلة إلى PDF', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(_error ?? 'حدث خطأ غير متوقع.', textAlign: TextAlign.center),
+              const SizedBox(height: 22),
+              FilledButton.icon(onPressed: _convert, icon: const Icon(Icons.refresh), label: const Text('إعادة المحاولة')),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => _CbrReader(filePath: widget.filePath, title: widget.title)),
+                ),
+                icon: const Icon(Icons.menu_book_outlined),
+                label: const Text('فتح بالقارئ القديم'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
