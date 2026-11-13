@@ -53,3 +53,6 @@ flutter_launcher_icons:
   image_path: "assets/kitara_icon.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/kitara_icon.png"
+
+dependency_overrides:
+  archive: ^4.7.1
