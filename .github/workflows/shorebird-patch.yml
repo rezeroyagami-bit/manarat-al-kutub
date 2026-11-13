@@ -138,4 +138,4 @@ jobs:
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
       - name: Publish Shorebird patch to stable
-        run: shorebird patch android --release-version 1.0.26+26 --track stable --allow-asset-diffs --allow-native-diffs
+        run: shorebird patch android --release-version 1.0.28+28 --track stable --allow-asset-diffs --allow-native-diffs
