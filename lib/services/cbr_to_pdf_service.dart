@@ -1,8 +1,5 @@
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
-
-import 'package:image/image.dart' as img;
 import 'package:koni_archive/io.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -41,10 +38,7 @@ class CbrToPdfService {
         final path = entry.path.toLowerCase();
         return path.endsWith('.jpg') ||
             path.endsWith('.jpeg') ||
-            path.endsWith('.png') ||
-            path.endsWith('.webp') ||
-            path.endsWith('.gif') ||
-            path.endsWith('.bmp');
+            path.endsWith('.png');
       }).toList()
         ..sort((a, b) => _naturalCompare(a.path, b.path));
 
@@ -64,23 +58,16 @@ class CbrToPdfService {
           throw Exception('حجم صور المجلة أكبر من الحد الآمن للتحويل.');
         }
 
-        final decoded = img.decodeImage(original);
-        if (decoded == null) {
-          throw Exception('تعذر فك ترميز إحدى صفحات المجلة: ${entry.path}');
-        }
-        final normalized = img.encodePng(decoded);
-        final image = pw.MemoryImage(Uint8List.fromList(normalized));
-        final width = decoded.width.toDouble();
-        final height = decoded.height.toDouble();
-
+        // JPEG and PNG are embedded directly to avoid recompression and preserve
+        // the original page quality. A4 is used as a safe page canvas; contain
+        // keeps the complete comic page visible without cropping.
+        final image = pw.MemoryImage(original);
         document.addPage(
           pw.Page(
-            pageFormat: PdfPageFormat(width, height),
-            margin: pw.EdgeInsets.zero,
-            build: (_) => pw.SizedBox(
-              width: width,
-              height: height,
-              child: pw.Image(image, fit: pw.BoxFit.fill),
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(8),
+            build: (_) => pw.Center(
+              child: pw.Image(image, fit: pw.BoxFit.contain),
             ),
           ),
         );
